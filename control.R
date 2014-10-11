@@ -40,27 +40,35 @@ wishedFeatures = c('variance')
 for(i in 1: numFiles){
   ffName = paste0("ffInter",i)
   assign(paste0("featureInter", i), getFeatures(get(ffName),wishedFeatures,16))
+  delete (ffName)
+  rm(ffName)
 }
 
 #get the features for each preictal clip
 for(i in 1: numFiles){
   ffName = paste0("ffPre",i)
   assign(paste0("featurePre", i), getFeatures(get(ffName),wishedFeatures,16))
+  delete (ffName)
+  rm(ffName)
 }
-#combine interictal features to one data.frame and add target column
+#combine interictal features to one data.frame, remove single clip files and add target column
 featureFrameInter = featureInter1
 for (i in 2: numFiles){
-  featureFrameInter = rbind(featureFrameInter, get(paste0("featureInter",i)))
+  varName = get(paste0("featureInter",i))
+  featureFrameInter = rbind(featureFrameInter, varName)
+  rm(paste0("featureInter",i))
 }
 featureFrameInter$preseizure = rep(0,nrow(featureFrameInter))
 #combine preictal features to one data.frame and add target column
 featureFramePre = featurePre1
 for (i in 2: numFiles){
-  featureFramePre = rbind(featureFramePre, get(paste0("featurePre",i)))
+  varName = get(paste0("featurePre",i))
+  featureFramePre = rbind(featureFramePre, varName)
+  rm(paste0("featurePre",i))
 }
 featureFramePre$preseizure = rep(1,nrow(featureFramePre))
-#To DO: remove unneccessary variables
-gc()
+#To DO: remove unused ff files
+file.remove(list.files(getOption("fftempdir"), full.names="true"))
 
 # 3c) combine the data
 featureFrame = rbind(featureFrameInter,featureFramePre)
