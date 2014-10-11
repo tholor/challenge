@@ -48,8 +48,8 @@ for(i in 1: numFiles){
   assign(paste0("featurePre", i), getFeatures(get(ffName),wishedFeatures,16))
 }
 
-#combine the features to one data frame
-featureFrameInter = getFeatures(interData,wishedFeatures,16)
+#!!TO DO: combine the features to one data frame !!
+
 
 featureFrameInter$preseizure = rep(0,length(interData))
 #rm(interData)
