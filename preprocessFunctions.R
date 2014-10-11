@@ -20,11 +20,25 @@ getFeatures = function (ffClip, wishedFeatures, startColumns = 16,type){
    }
    colCounter = colCounter+numNewFeatures
  }
+ 
+ ## from old version: 2. Correlation ##
+#  if('correlation' %in% wishedFeatures){
+#    numNewFeatures = choose(16,2) #number of features, which will be added
+#    newColNeeded = (colCounter+numNewFeatures)-ncol(feature)
+#    #add new (empty) columns
+#    if (newColNeeded>0) feature = addColumns(feature,newColNeeded)
+#    
+#    for (i in 1:length(dataList)){
+#      feature[i,(colCounter+1):(colCounter+numNewFeatures)] = getCorrelationOfClip(dataList[[i]])
+#    }
+#    
+#  }
 
  # return the assembled features
  names(feature) = columnNames
  return(feature)
 }
+
 
 
 ###further features to implement: 

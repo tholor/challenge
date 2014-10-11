@@ -14,7 +14,7 @@ source("preprocessFunctions.R")
 #3. preprocess data
 # 3a)load data
 #load interictal clips to ff variables
-numFiles = 2 #how many of the available clips should be loaded
+numFiles = 20 #how many of the available clips should be loaded
 for(i in 1:numFiles){
   #later: check here if the file has already been loaded before (=> Cache) 
   varName = paste0("ffInter",i)
@@ -47,15 +47,19 @@ for(i in 1: numFiles){
   ffName = paste0("ffPre",i)
   assign(paste0("featurePre", i), getFeatures(get(ffName),wishedFeatures,16))
 }
-
-#!!TO DO: combine the features to one data frame !!
-
-
-featureFrameInter$preseizure = rep(0,length(interData))
-#rm(interData)
-featureFramePre = getFeatures(preData,wishedFeatures,16)
-featureFramePre$preseizure = rep(1,length(preData))
-#rm(preData)
+#combine interictal features to one data.frame and add target column
+featureFrameInter = featureInter1
+for (i in 2: numFiles){
+  featureFrameInter = rbind(featureFrameInter, get(paste0("featureInter",i)))
+}
+featureFrameInter$preseizure = rep(0,nrow(featureFrameInter))
+#combine preictal features to one data.frame and add target column
+featureFramePre = featurePre1
+for (i in 2: numFiles){
+  featureFramePre = rbind(featureFramePre, get(paste0("featurePre",i)))
+}
+featureFramePre$preseizure = rep(1,nrow(featureFramePre))
+#To DO: remove unneccessary variables
 gc()
 
 # 3c) combine the data
