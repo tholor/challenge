@@ -1,5 +1,34 @@
+##new Version:
+getFeatures = function (ffClip, wishedFeatures, startColumns = 16,type){
+  feature = data.frame(matrix(NA,1,startColumns))
+ # row.names(feature) = "Clipname"
+ colCounter = 0
+ 
+ ##Assembling the wished Features ##
+ ## 1. Variance ##
+ if('variance' %in% wishedFeatures){
+   numNewFeatures = 16 #number of features, which will be added
+   newColNeeded = (colCounter+numNewFeatures)-ncol(feature)
+   #add new (empty) columns
+   if (newColNeeded>0) feature = addColumns(feature,newColNeeded)
+   #calculate Variance
+     feature[1,(colCounter+1):(colCounter+numNewFeatures)] = getVarianceOfClip(ffClip)
+   #Name the columns
+   columnNames = rep(0,numNewFeatures)
+   for (j in 1:numNewFeatures){
+     columnNames[j+colCounter] = paste0('VarCh',j)
+   }
+   colCounter = colCounter+numNewFeatures
+ }
 
-getFeatures = function (dataList, wishedFeatures,startColumns=16){
+ # return the assembled features
+ names(feature) = columnNames
+ return(feature)
+}
+
+
+##Old Version:
+getFeaturesOld = function (dataList, wishedFeatures,startColumns=16){
   ##gets all the wanted features from the data
   #in: dataList = includes different clips; each clip is an array of 16 eeg-channels x 239766 timepoints; fields = voltages 
   #   wishedFeatures = array of strings stating which features should be extracted from dataList
@@ -47,6 +76,9 @@ getFeatures = function (dataList, wishedFeatures,startColumns=16){
   names(feature) = columnNames
   return(feature)
 }
+
+###further features to implement: 
+# bipolar filter, low pass filter, fast fourier trans. , normalization, time series correlation, frequ. correlation ...
 ############
 ## helper ##
 ############

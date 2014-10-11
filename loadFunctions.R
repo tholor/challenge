@@ -31,13 +31,20 @@ loadData = function(path, files){
 
 ##Load function incorporating the ff-package for large data sets
 # not working yet
-loadBigData = function(path, files){
+loadBigFiles = function(path, files){
   for(i in 1:2){
-    filePath = paste0(path,files[i])
-    temp = readMat(filePath)
-    foo = ff( vmode = "short",dim = dim(temp[[1]][1][[1]]))
-    foo = temp[[1]][1][[1]]
+    assign (paste0(big,file[i]), loadSingleBigFile)
   }
-  #names(foo) = files[1:2]
-  return(foo)
+  # assign all the variable
+  return(bigFile)
+}
+
+#loading a single .mat file into a ff file
+loadSingleBigFile = function (filepath){
+  temp = readMat(filepath)
+  #bigFile = ff(vmode = "short",dim = dim(temp[[1]][1][[1]]))
+  bigFile = temp[[1]][1][[1]]
+  rm(temp)
+  gc()
+  return(bigFile)
 }
