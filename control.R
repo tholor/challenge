@@ -28,7 +28,26 @@ for(i in 1:numFiles){
   #fftest1 = ff(vmode="short", dim = dim(temp[[1]][1][[1]]))
   #fftest1[,] = temp[[1]][1][[1]]
 }
-get(varName)
+
+# exerimental: fft
+Fs = 400;                   # % Sampling frequency
+T = 1/Fs;                    # % Sample time
+L = 239766;                    # % Length of signal
+t = c(0:(L-1))*T  
+#apply fourier transformation to detect the original sinus signals
+#NFFT etc for scaling and extracting only the positive values from fft
+NFFT = 2^nextpow2(L); #Next power of 2 from length of y
+
+Y = fft(ffInter1[2,])/L;
+#take only one half of the measures and scale them
+Y_pos = 2*abs(Y[1:(NFFT/2+1)])
+f = (Fs/2)*seq(0,1,length = NFFT/2+1)
+
+#Plot single-sided amplitude spectrum.
+plot(f,Y_pos,type="l") 
+title('Single-Sided Amplitude Spectrum of y(t)')
+#get frequencies with high amplitudes
+f[which(Y_pos>0.4)]
 
 #load preIctal Clips to ff variables
 for(i in 1:numFiles){

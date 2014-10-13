@@ -2,9 +2,9 @@ library(pracma)
 #example fourier transformation from: http://www.mathworks.de/de/help/matlab/ref/fft.html?refresh=true
 
 #create signal with two sin curves and a random noise
-Fs = 1000;                   # % Sampling frequency
+Fs = 400;                   # % Sampling frequency
 T = 1/Fs;                    # % Sample time
-L = 1000;                    # % Length of signal
+L = 239766;                    # % Length of signal
 t = c(0:(L-1))*T               #% Time vector
 #Sum of a 50 Hz sinusoid and a 120 Hz sinusoid; amplitudes of 0.7 and 1
 x = 0.7*sin(2*pi*50*t) + sin(2*pi*120*t); 
@@ -28,4 +28,5 @@ f = (Fs/2)*seq(0,1,length = NFFT/2+1)
 plot(f,Y_pos,type="l") 
 title('Single-Sided Amplitude Spectrum of y(t)')
 #get frequencies with high amplitudes
-which(Y_pos>0.4)
+f[which(Y_pos>0.4)]
+
