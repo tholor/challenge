@@ -4,6 +4,7 @@ gc()
 #1. load packages
 library(R.matlab)
 library(rpart)
+library(ff)
 
 #2. load config
 source("config.R")
@@ -14,7 +15,7 @@ source("preprocessFunctions.R")
 #3. preprocess data
 # 3a)load data
 #load interictal clips to ff variables
-numFiles = 24#how many of the available clips should be loaded
+numFiles = 2#how many of the available clips should be loaded
 
 for(i in 1:numFiles){
   #later: check here if the file has already been loaded before (=> Cache) 
@@ -22,7 +23,12 @@ for(i in 1:numFiles){
   temp = readMat(paste0(path,interictalFileNames[i]))
   assign(varName, ff(vmode = "short",dim = dim(temp[[1]][1][[1]])))
   assign(varName, temp[[1]][1][[1]])
+  #Note: last assign does not work properly (changes unintendedly the type from ff to ordinary array)
+  #Reason: static assignment would be with [,]: 
+  #fftest1 = ff(vmode="short", dim = dim(temp[[1]][1][[1]]))
+  #fftest1[,] = temp[[1]][1][[1]]
 }
+get(varName)
 
 #load preIctal Clips to ff variables
 for(i in 1:numFiles){

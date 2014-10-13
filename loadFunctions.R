@@ -1,4 +1,4 @@
-library(ff)
+
 
 #get all the correct filenames from the path
 fileNames = list.files(path)
