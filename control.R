@@ -14,7 +14,8 @@ source("preprocessFunctions.R")
 #3. preprocess data
 # 3a)load data
 #load interictal clips to ff variables
-numFiles = 20 #how many of the available clips should be loaded
+numFiles = 24#how many of the available clips should be loaded
+
 for(i in 1:numFiles){
   #later: check here if the file has already been loaded before (=> Cache) 
   varName = paste0("ffInter",i)
@@ -40,23 +41,18 @@ wishedFeatures = c('variance')
 for(i in 1: numFiles){
   ffName = paste0("ffInter",i)
   assign(paste0("featureInter", i), getFeatures(get(ffName),wishedFeatures,16))
-  delete (ffName)
-  rm(ffName)
 }
 
 #get the features for each preictal clip
 for(i in 1: numFiles){
   ffName = paste0("ffPre",i)
   assign(paste0("featurePre", i), getFeatures(get(ffName),wishedFeatures,16))
-  delete (ffName)
-  rm(ffName)
 }
 #combine interictal features to one data.frame, remove single clip files and add target column
 featureFrameInter = featureInter1
 for (i in 2: numFiles){
   varName = get(paste0("featureInter",i))
   featureFrameInter = rbind(featureFrameInter, varName)
-  rm(paste0("featureInter",i))
 }
 featureFrameInter$preseizure = rep(0,nrow(featureFrameInter))
 #combine preictal features to one data.frame and add target column
@@ -64,11 +60,15 @@ featureFramePre = featurePre1
 for (i in 2: numFiles){
   varName = get(paste0("featurePre",i))
   featureFramePre = rbind(featureFramePre, varName)
-  rm(paste0("featurePre",i))
 }
 featureFramePre$preseizure = rep(1,nrow(featureFramePre))
-#To DO: remove unused ff files
+#remove unused ff files and variables
 file.remove(list.files(getOption("fftempdir"), full.names="true"))
+rm(list = ls()[grepl("+ffPre+",ls())])
+rm(list = ls()[grepl("+ffInter+",ls())])
+rm(list = ls()[grepl("+featurePre+",ls())])
+rm(list = ls()[grepl("+featureInter+",ls())])
+
 
 # 3c) combine the data
 featureFrame = rbind(featureFrameInter,featureFramePre)
