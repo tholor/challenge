@@ -5,7 +5,7 @@ library(pracma)
 Fs = 1000;                   # % Sampling frequency
 T = 1/Fs;                    # % Sample time
 L = 1000;                    # % Length of signal
-t = (c(0:(L-1))*T               #% Time vector
+t = c(0:(L-1))*T               #% Time vector
 #Sum of a 50 Hz sinusoid and a 120 Hz sinusoid; amplitudes of 0.7 and 1
 x = 0.7*sin(2*pi*50*t) + sin(2*pi*120*t); 
 y = x + 2*rnorm(length(t));     #% Sinusoids plus some gaussian noise
