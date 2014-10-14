@@ -18,7 +18,7 @@ source("preprocessFunctions.R")
 ########## Loading #################
 # 3a)load data
 #load interictal clips to ff variables
-numFiles = 2#how many of the available clips should be loaded
+numFiles = 2 #how many of the available clips should be loaded
 
 for(i in 1:numFiles){
   #later: check here if the file has already been loaded before (=> Cache) 

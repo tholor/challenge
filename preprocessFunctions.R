@@ -27,18 +27,34 @@ getFeatures = function (ffClip, wishedFeatures, startColumns = 16,type){
    if (newColNeeded>0) feature = addColumns(feature,newColNeeded)
    #get correlation 
    feature[i,(colCounter+1):(colCounter+numNewFeatures)] = getCorrelationOfClip(t(ffClip[,])) 
-   #To DO: name the columns cor1-2 cor1-3 ... 
-   combinations = combn(1:16,2)
+   #name the columns (cor1-2 cor1-3 ... )
+   combinations = combn(1:dim(ffClip[])[1],2)
    for (j in 1:numNewFeatures){
      columnNames[j+colCounter] = paste0('Cor',combinations[1,j],"-",combinations[2,j])
    }
    colCounter = colCounter+numNewFeatures
- }
- 
- # 3. Correlation for the frequency dimension
- # return the assembled features
+ } 
+ # name and return the assembled features
  names(feature) = columnNames
  return(feature)
+}
+
+# 3. Correlation for the frequency dimension
+#input: ffClip which has already been transformed by fft and reduced to essential dimensions (otherwise giant correlation matrix)
+#To Do: Test!
+freqCorrelation = function(ffClip){
+  numOfCorrelations = choose(dim(ffClip),2)
+  tempFrame = data.frame(matrix(NA,1,NumOfCorrelations) 
+  columnNames = rep(NA, numOfCorrelations)                       
+  getVarianceOfClip(ffClip[,])
+  #Naming
+  #TO DO: names according to frequence (so far only the indexes)
+  combinations = combn(1:dim(ffClip[])[2],2)
+  for (j in 1:numOfCorrelations){
+    columnNames[j] = paste0('freqCor',combinations[1,j],"-",combinations[2,j])
+  }
+  names(feature) = columnNames
+  return(feature)
 }
 
 
