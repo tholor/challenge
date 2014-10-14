@@ -6,6 +6,7 @@ library(R.matlab)
 library(rpart)
 library(ff)
 library(pracma)
+library(propagate)
 
 #2. load config
 source("config.R")
@@ -17,7 +18,7 @@ source("preprocessFunctions.R")
 ########## Loading #################
 # 3a)load data
 #load interictal clips to ff variables
-numFiles = 24#how many of the available clips should be loaded
+numFiles = 2#how many of the available clips should be loaded
 
 for(i in 1:numFiles){
   #later: check here if the file has already been loaded before (=> Cache) 
@@ -34,7 +35,7 @@ for(i in 1:numFiles){
   assign(varName, ff(initdata = temp[[1]][1][[1]], vmode = "short",dim = dim(temp[[1]][1][[1]])))
 }
 
-# # exerimental: fft
+# # # exerimental: fft
 # Fs = 400;                   # % Sampling frequency
 # T = 1/Fs;                    # % Sample time
 # L = 239766;                    # % Length of signal
@@ -50,7 +51,6 @@ for(i in 1:numFiles){
 # 
 # #Plot single-sided amplitude spectrum.
 # plot(f,Y_pos,type="l") 
-# title('Single-Sided Amplitude Spectrum of y(t)')
 # #get frequencies with high amplitudes
 # f[which(Y_pos>0.4)]
 
@@ -59,7 +59,7 @@ for(i in 1:numFiles){
 ########## Features ##########
 # 3b)extract features and build dataframe for the classifier
 #
-wishedFeatures = c('variance')
+wishedFeatures = c('variance','correlation')
 #get the features for each interictal clip
 for(i in 1: numFiles){
   ffName = paste0("ffInter",i)
