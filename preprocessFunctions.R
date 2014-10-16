@@ -26,7 +26,7 @@ getFeatures = function (ffClip, wishedFeatures, startColumns = 16,type){
    #add new (empty) columns
    if (newColNeeded>0) feature = addColumns(feature,newColNeeded)
    #get correlation 
-   feature[i,(colCounter+1):(colCounter+numNewFeatures)] = getCorrelationOfClip(t(ffClip[,])) 
+   feature[1,(colCounter+1):(colCounter+numNewFeatures)] = getCorrelationOfClip(t(ffClip[,])) 
    #name the columns (cor1-2 cor1-3 ... )
    combinations = combn(1:dim(ffClip[])[1],2)
    for (j in 1:numNewFeatures){
@@ -43,23 +43,55 @@ getFeatures = function (ffClip, wishedFeatures, startColumns = 16,type){
 #input: ffClip which has already been transformed by fft and reduced to essential dimensions (otherwise giant correlation matrix)
 #To Do: Test!
 freqCorrelation = function(ffClip){
-  numOfCorrelations = choose(dim(ffClip),2)
-  tempFrame = data.frame(matrix(NA,1,NumOfCorrelations) 
+  #in: ff File
+  #out: matrix
+  numOfChannels = dim(ffClip[,])[1]
+  numOfCorrelations = choose(numOfChannels,2)
   columnNames = rep(NA, numOfCorrelations)                       
-  getVarianceOfClip(ffClip[,])
+  features = matrix(getCorrelationOfClip(t(ffClip[,])), nrow=1)
   #Naming
-  #TO DO: names according to frequence (so far only the indexes)
-  combinations = combn(1:dim(ffClip[])[2],2)
+  combinations = combn(1:numOfChannels,2)
   for (j in 1:numOfCorrelations){
     columnNames[j] = paste0('freqCor',combinations[1,j],"-",combinations[2,j])
   }
-  names(feature) = columnNames
-  return(feature)
+  colnames(features) = columnNames
+  return(features)
 }
-
 
 ###further features to implement: 
 # bipolar filter, low pass filter, fast fourier trans. , normalization, time series correlation, frequ. correlation ...
+
+
+getFFT = function(ffClip){
+  #in: ff File
+  #out: matrix
+  ffClip =ffTimeInter1
+  Fs = 400;                   # % Sampling frequency
+  T = 1/Fs;                    # % Sample time
+  L = 239766;                    # % Length of signal
+  t = c(0:(L-1))*T  
+  #apply fourier transformation to detect the original sinus signals
+  #NFFT etc for scaling and extracting only the positive values from fft
+  NFFT = 2^nextpow2(L); #Next power of 2 from length of y
+  #preallocate matrix
+  Y_scaled = matrix(NA, nrow = dim(ffClip), ncol = NFFT/2+1)
+  #Scale frequencies
+  f = (Fs/2)*seq(0,1,length = NFFT/2+1)
+  #now transform each channel of the ffCLip:
+  for (i in 1: dim(ffClip)[1]){
+    Y_temp = fft(ffClip[i,])/L;
+    #take only one half of the measures and scale them
+    Y_scaled[i,] = 2*abs(Y_temp[1:(NFFT/2+1)])
+  }
+  colnames(Y_scaled) = f
+  return (Y_scaled)
+  
+  #get frequencies with high amplitudes
+  #f[which(Y_scaled>0.2)]
+  #Plot single-sided amplitude spectrum.
+  #plot(colnames(Y_scaled),Y_scaled[15,],type="l") 
+}
+
 ############
 ## helper ##
 ############

@@ -18,76 +18,87 @@ source("preprocessFunctions.R")
 ########## Loading #################
 # 3a)load data
 #load interictal clips to ff variables
-numFiles = 2 #how many of the available clips should be loaded
+#numFilesInter = length(interictalFileNames) #how many of the available clips should be loaded
+#numFilesPre = length(preictalFileNames)
+numFilesInter = 3
+numFilesPre = 3
+doFFT = TRUE
 
-for(i in 1:numFiles){
+#Load Raw Time Data
+#load interictal clips to ff variables
+for(i in 1:numFilesInter){
   #later: check here if the file has already been loaded before (=> Cache) 
-  varName = paste0("ffInter",i)
+  varName = paste0("ffTimeInter",i)
   temp = readMat(paste0(path,interictalFileNames[i]))
   assign(varName, ff(initdata = temp[[1]][1][[1]], vmode = "short",  dim = dim(temp[[1]][1][[1]])))
 }
-
 #load preIctal Clips to ff variables
-for(i in 1:numFiles){
+for(i in 1:numFilesPre){
   #later: check here if the file has already been loaded before (=> Cache) 
-  varName = paste0("ffPre",i)
+  varName = paste0("ffTimePre",i)
   temp = readMat(paste0(path,preictalFileNames[i]))
   assign(varName, ff(initdata = temp[[1]][1][[1]], vmode = "short",dim = dim(temp[[1]][1][[1]])))
 }
 
-# # # exerimental: fft
-# Fs = 400;                   # % Sampling frequency
-# T = 1/Fs;                    # % Sample time
-# L = 239766;                    # % Length of signal
-# t = c(0:(L-1))*T  
-# #apply fourier transformation to detect the original sinus signals
-# #NFFT etc for scaling and extracting only the positive values from fft
-# NFFT = 2^nextpow2(L); #Next power of 2 from length of y
-# 
-# Y = fft(ffInter1[2,])/L;
-# #take only one half of the measures and scale them
-# Y_pos = 2*abs(Y[1:(NFFT/2+1)])
-# f = (Fs/2)*seq(0,1,length = NFFT/2+1)
-# 
-# #Plot single-sided amplitude spectrum.
-# plot(f,Y_pos,type="l") 
-# #get frequencies with high amplitudes
-# f[which(Y_pos>0.4)]
+#Build Frequency Data (Fourier Transformation of Time Data)
+if(doFFT){
+  #Transform interictal Data
+  for(i in 1:numFilesInter){
+    ffName = paste0("ffTimeInter",i)
+    temp = getFFT(get(ffName))
+    assign(paste0("ffFreqInter",i), ff(initdata = temp, vmode = "short",  dim = dim(temp)))
+  }
+  #Transform preictal Data
+  for(i in 1:numFilesPre){
+    ffName = paste0("ffTimePre",i)
+    temp = getFFT(get(ffName))
+    assign(paste0("ffFreqPre",i), ff(initdata = temp, vmode = "short",dim = dim(temp)))
+  }
 
-
+}
 
 ########## Features ##########
 # 3b)extract features and build dataframe for the classifier
 #
+source("preprocessFunctions.R")
+
 wishedFeatures = c('variance','correlation')
 #get the features for each interictal clip
-for(i in 1: numFiles){
-  ffName = paste0("ffInter",i)
-  assign(paste0("featureInter", i), getFeatures(get(ffName),wishedFeatures,16))
+for(i in 1: numFilesInter){
+  ffName = paste0("ffTimeInter",i)
+  ffFreqName = paste0("ffFreqInter",i)
+  #only temporary version until Tom'S restructuring (deleting the "wishedFeatures" structure)
+  timeFeatures=getFeatures(get(ffName),wishedFeatures,16)
+  freqFeatures = freqCorrelation(get(ffFreqName)) 
+  assign(paste0("featureInter", i), cbind(timeFeatures,freqFeatures))
 }
 
 #get the features for each preictal clip
-for(i in 1: numFiles){
-  ffName = paste0("ffPre",i)
-  assign(paste0("featurePre", i), getFeatures(get(ffName),wishedFeatures,16))
+for(i in 1: numFilesPre){
+  ffName = paste0("ffTimePre",i)
+  ffFreqName = paste0("ffFreqPre",i)
+  #only temporary version until Tom'S restructuring (deleting the "wishedFeatures" structure)
+  timeFeatures=getFeatures(get(ffName),wishedFeatures,16)
+  freqFeatures = freqCorrelation(get(ffFreqName)) 
+  assign(paste0("featurePre", i), cbind(timeFeatures,freqFeatures))
 }
 #combine interictal features to one data.frame, remove single clip files and add target column
 featureFrameInter = featureInter1
-for (i in 2: numFiles){
+for (i in 2: numFilesInter){
   varName = get(paste0("featureInter",i))
   featureFrameInter = rbind(featureFrameInter, varName)
 }
 featureFrameInter$preseizure = rep(0,nrow(featureFrameInter))
 #combine preictal features to one data.frame and add target column
 featureFramePre = featurePre1
-for (i in 2: numFiles){
+for (i in 2: numFilesPre){
   varName = get(paste0("featurePre",i))
   featureFramePre = rbind(featureFramePre, varName)
 }
 featureFramePre$preseizure = rep(1,nrow(featureFramePre))
 #remove unused ff files and variables
-rm(list = ls()[grepl("+ffPre+",ls())])
-rm(list = ls()[grepl("+ffInter+",ls())])
+rm(list = ls()[grepl("+ffFreq+",ls())])
+rm(list = ls()[grepl("+ffTime+",ls())])
 rm(list = ls()[grepl("+featurePre+",ls())])
 rm(list = ls()[grepl("+featureInter+",ls())])
 gc()
