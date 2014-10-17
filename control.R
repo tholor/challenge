@@ -28,7 +28,7 @@ target = "Dog1"
 #load interictal clips to ff variables
 for(i in 1:numFilesInter){
   varName = paste0("ffTimeInter",i)
-  #check if file has already been cached: 
+  #check if file has already been cached (maybe later: outsource to a function): 
   if(file.exists(paste0(pathCache,target,"\\",varName,".ffData"))){ 
     ffload(paste0(pathCache,target,"\\",varName), overwrite = TRUE)
     print(paste0("loaded from cache:", varName))
@@ -49,11 +49,12 @@ for(i in 1:numFilesPre){
     ffload(paste0(pathCache, target,"\\",varName), overwrite = TRUE)
     print(paste0("loaded from cache:", varName))
   }else{ #if not load it from .mat File and save it
-  print(paste0("loaded from .mat:", varName))
   temp = readMat(paste0(path,preictalFileNames[i]))
   assign(varName, ff(initdata = temp[[1]][1][[1]], vmode = "short",dim = dim(temp[[1]][1][[1]])))
   t = get(varName)
-  ffsave(t,list = c(varName), file = paste0(pathCache, target,"\\",varName))  }
+  ffsave(t,list = c(varName), file = paste0(pathCache, target,"\\",varName)) 
+  print(paste0("loaded from .mat:", varName))
+  }
 }
 
 #Build Frequency Data (Fourier Transformation of Time Data)
@@ -61,16 +62,35 @@ if(doFFT){
   #Transform interictal Data
   for(i in 1:numFilesInter){
     ffName = paste0("ffTimeInter",i)
+    ffFreqName = paste0("ffFreqInter",i)
+    #check Cache
+    if(file.exists(paste0(pathCache,target,"\\",ffFreqName,".ffData"))){ 
+      ffload(paste0(pathCache, target,"\\",ffFreqName), overwrite = TRUE)
+      print(paste0("FFT from cache:", ffFreqName))
+    }else{ #if not: do fft and save it to cache
     temp = getFFT(get(ffName))
-    assign(paste0("ffFreqInter",i), ff(initdata = temp, vmode = "short",  dim = dim(temp)))
+    assign(ffFreqName, ff(initdata = temp, vmode = "short",  dim = dim(temp)))
+    t = get(ffFreqName)
+    ffsave(t,list = c(ffFreqName), file = paste0(pathCache, target,"\\",ffFreqName)) 
+    print(paste0("transformed with fft:", ffFreqName))
+    }
   }
   #Transform preictal Data
   for(i in 1:numFilesPre){
     ffName = paste0("ffTimePre",i)
+    ffFreqName = paste0("ffFreqPre",i)
+    #check Cache
+    if(file.exists(paste0(pathCache,target,"\\",ffFreqName,".ffData"))){ 
+      ffload(paste0(pathCache, target,"\\",ffFreqName), overwrite = TRUE)
+      print(paste0("FFT from cache:", ffFreqName))
+    }else{ #if not: do fft and save it to cache
     temp = getFFT(get(ffName))
     assign(paste0("ffFreqPre",i), ff(initdata = temp, vmode = "short",dim = dim(temp)))
+    t = get(ffFreqName)
+    ffsave(t,list = c(ffFreqName), file = paste0(pathCache, target,"\\",ffFreqName)) 
+    print(paste0("transformed with fft:", ffFreqName))
+    }
   }
-
 }
 
 ########## Features ##########
