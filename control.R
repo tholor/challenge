@@ -1,4 +1,3 @@
-
 rm(list = ls())
 gc()
 #1. load packages
@@ -20,24 +19,41 @@ source("preprocessFunctions.R")
 #load interictal clips to ff variables
 #numFilesInter = length(interictalFileNames) #how many of the available clips should be loaded
 #numFilesPre = length(preictalFileNames)
-numFilesInter = 3
-numFilesPre = 3
+numFilesInter = 6
+numFilesPre = 2
 doFFT = TRUE
+target = "Dog1"
 
 #Load Raw Time Data
 #load interictal clips to ff variables
 for(i in 1:numFilesInter){
-  #later: check here if the file has already been loaded before (=> Cache) 
   varName = paste0("ffTimeInter",i)
+  #check if file has already been cached: 
+  if(file.exists(paste0(pathCache,target,"\\",varName,".ffData"))){ 
+    ffload(paste0(pathCache,target,"\\",varName), overwrite = TRUE)
+    print(paste0("loaded from cache:", varName))
+  }
+  else{ #if not load it from .mat File and save it
+  print(paste0("loaded from .mat:", varName))
   temp = readMat(paste0(path,interictalFileNames[i]))
   assign(varName, ff(initdata = temp[[1]][1][[1]], vmode = "short",  dim = dim(temp[[1]][1][[1]])))
+  t = get(varName)
+  ffsave(t,list = c(varName), file = paste0(pathCache, target,"\\",varName))
+  }
 }
 #load preIctal Clips to ff variables
 for(i in 1:numFilesPre){
-  #later: check here if the file has already been loaded before (=> Cache) 
   varName = paste0("ffTimePre",i)
+  #check if file has already been cached: 
+  if(file.exists(paste0(pathCache,target,"\\",varName,".ffData"))){ 
+    ffload(paste0(pathCache, target,"\\",varName), overwrite = TRUE)
+    print(paste0("loaded from cache:", varName))
+  }else{ #if not load it from .mat File and save it
+  print(paste0("loaded from .mat:", varName))
   temp = readMat(paste0(path,preictalFileNames[i]))
   assign(varName, ff(initdata = temp[[1]][1][[1]], vmode = "short",dim = dim(temp[[1]][1][[1]])))
+  t = get(varName)
+  ffsave(t,list = c(varName), file = paste0(pathCache, target,"\\",varName))  }
 }
 
 #Build Frequency Data (Fourier Transformation of Time Data)
@@ -59,8 +75,6 @@ if(doFFT){
 
 ########## Features ##########
 # 3b)extract features and build dataframe for the classifier
-#
-source("preprocessFunctions.R")
 
 wishedFeatures = c('variance','correlation')
 #get the features for each interictal clip
@@ -96,7 +110,9 @@ for (i in 2: numFilesPre){
   featureFramePre = rbind(featureFramePre, varName)
 }
 featureFramePre$preseizure = rep(1,nrow(featureFramePre))
+
 #remove unused ff files and variables
+rm(temp)
 rm(list = ls()[grepl("+ffFreq+",ls())])
 rm(list = ls()[grepl("+ffTime+",ls())])
 rm(list = ls()[grepl("+featurePre+",ls())])
