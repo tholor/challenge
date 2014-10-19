@@ -30,7 +30,7 @@ getFeatures = function (ffClip, wishedFeatures, startColumns = 16,type){
    #name the columns (cor1-2 cor1-3 ... )
    combinations = combn(1:dim(ffClip[])[1],2)
    for (j in 1:numNewFeatures){
-     columnNames[j+colCounter] = paste0('Cor',combinations[1,j],"-",combinations[2,j])
+     columnNames[j+colCounter] = paste0('Cor',combinations[1,j],".",combinations[2,j])
    }
    colCounter = colCounter+numNewFeatures
  } 
@@ -41,7 +41,7 @@ getFeatures = function (ffClip, wishedFeatures, startColumns = 16,type){
 
 # 3. Correlation for the frequency dimension
 #input: ffClip which has already been transformed by fft and reduced to essential dimensions (otherwise giant correlation matrix)
-#To Do: Test!
+#To Do: sanity check
 freqCorrelation = function(ffClip){
   #in: ff File
   #out: matrix
@@ -52,7 +52,7 @@ freqCorrelation = function(ffClip){
   #Naming
   combinations = combn(1:numOfChannels,2)
   for (j in 1:numOfCorrelations){
-    columnNames[j] = paste0('freqCor',combinations[1,j],"-",combinations[2,j])
+    columnNames[j] = paste0('freqCor',combinations[1,j],".",combinations[2,j])
   }
   colnames(features) = columnNames
   return(features)
