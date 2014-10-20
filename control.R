@@ -8,7 +8,7 @@ library(pracma)
 #library(propagate)
 library(caret) #  classifier Framework
 library(xlsx) # Excel export/import
-library(doParallel) # later for parallelization of caret functionality: 
+#library(doParallel) # later for parallelization of caret functionality: 
 
 #2. load config
 source("config.R")
@@ -62,6 +62,7 @@ for(i in 1:numFilesPre){
 }
 
 #Build Frequency Data (Fourier Transformation of Time Data)
+#note for later: patient data has different sample frequency!
 if(doFFT){
   print("### Start FFT Transformation ###")
   #Transform interictal Data
@@ -127,14 +128,14 @@ for (i in 2: numFilesInter){
   varName = get(paste0("featureInter",i))
   featureFrameInter = rbind(featureFrameInter, varName)
 }
-featureFrameInter$preseizure = as.factor(rep(0,nrow(featureFrameInter)))
+featureFrameInter$preseizure = as.factor(rep("No",nrow(featureFrameInter)))
 #combine preictal features to one data.frame and add target column
 featureFramePre = featurePre1
 for (i in 2: numFilesPre){
   varName = get(paste0("featurePre",i))
   featureFramePre = rbind(featureFramePre, varName)
 }
-featureFramePre$preseizure = as.factor(rep(1,nrow(featureFramePre)))
+featureFramePre$preseizure = as.factor(rep("Yes",nrow(featureFramePre)))
 
 #remove unused ff files (from disk) and variables (from RAM)
 rm(temp)
@@ -155,36 +156,69 @@ testRows = - trainRows
 trainData = featureFrame[trainRows,]
 testData = featureFrame[testRows,]
 
+#shortcut: loading the current "standard feature frame"
+featureFrame = read.table("D:\\Seizure Competition\\Data\\Cache\\Dog1\\Features\\test.txt", header=TRUE, sep="\t")
+featureFrame$preseizure = as.factor(featureFrame$preseizure)
+featureFrame$preseizure
 ########### Classifier ##############################
 #4. train classifier
 #later: cost sensitive (more important to classify the rare preseizure clips correctly)
 print("### Start training the classifier ###")
 #list of possible classifiers
-lossMatrix = matrix(c(0,100000,1,0), nrow=2)
-lossVector = as.vector(c(0.95,0.05))
-names(lossVector)= c(0,1)
+lossMatrix = matrix(c(0,100,1,0), nrow=2)
 classifier = rpartTree(trainData, lossMatrix) #simple (unpruned) CART Tree with package rpart
 rm(classifier)
 
 #tuned classifiiers from caret package:
-#set tune parameters: 3x 10folds cross validation; later: make sure that train and test data contain *different sequences* of interictal data
-cvCtrl = trainControl(method = "repeatedcv",number = 10, repeats = 3) 
-classifier = train(preseizure ~ ., data = trainData, method = "rpart", trControl = cvCtrl, parms = list(loss = lossMatrix))
-classifier = train(preseizure ~ ., data = trainData, method = "C5.0")
-classifier = train(preseizure ~ ., data = trainData, method = "C5.0")
-classifier = train(preseizure ~ ., data = trainData, method = "svmLinear",class.weights = c("1" = 95, "0"= 5))
-#classifier = train(preseizure ~ ., data = trainData, method = "nb") #naive Bayes: pretty bad!
+#set tune parameters: 3x 10folds cross validation; later: make sure that train and test data contain *different sequences* of data
+cvCtrl = trainControl(method = "repeatedcv",number = 10, repeats = 3, classProbs = TRUE, summaryFunction = twoClassSummary)
+#cvCtrlClass = trainControl(method = "repeatedcv",number = 5, repeats = 3)
 
-#if tree: plot can be interesting
-plot(classifier$finalModel)
-text(classifier$finalModel)
+  #treebased classifier
+  classifierRpart =           train(preseizure ~ ., data = featureFrame, trControl = cvCtrl, metric = "ROC", method = "rpart",   parms = list(loss = lossMatrix))#AUC:0.9882
+  classifierc5 =              train(preseizure ~ ., data = featureFrame, trControl = cvCtrl, metric = "ROC", method = "C5.0", costs = lossMatrix)#AUC: 0.9636
+  classifierRandomForest =    train(preseizure ~ ., data = featureFrame, trControl = cvCtrl, metric = "ROC", method = "rf")
+  #support vector machines
+  classifierSVMlin =          train(preseizure ~ ., data = featureFrame, trControl = cvCtrl, metric = "ROC", method = "svmLinear", scaled = FALSE)#0.7711
+  classifierSVMexp =          train(preseizure ~ ., data = featureFrame, trControl = cvCtrl, metric = "ROC", method = "svmRadial", scaled = FALSE)#0.9858
+
+#Combine the results of the different classifiers and print summary
+performanceResults <- resamples(list(rPart = classifierRpart,
+                                    svmLin = classifierSVMlin,
+                                    svmexp = classifierSVMexp,
+                                    C5 = classifierc5))
+summary(performanceResults)
+
+#visualize performance of different train methods with box-and-whisker-plot :
+bwplot(performanceResults, layout = c(3, 1))
+
 # 5. evaluate classifier
-#pred = predict(classifier, testData, type = "class") #for rpart
-pred = predict(classifier, testData) #for all caret classifier
-confusionMatrix(pred,testData$preseizure)
+curClassifier = classifierSVMexp
+pred = predict(classifier, featureFrame, type = "class") #for rpart
+pred = predict(curClassifier, featureFrame) #should work for all caret classifiers
+confusionMatrix(pred,featureFrame$preseizure, positive = "Yes")
+#AUC Calculation (Area under the ROC Curve)
+#Sanity Check! Seems to be super high
+predRoc = predict(curClassifier, featureFrame, type = "prob")
+predRoc
+myroc = pROC::roc(featureFrame$preseizure, as.vector(predRoc[,2]))
+plot(myroc, print.thres = "best")
+auc(myroc)
+
+#adjust optimal cut-off threshold for class probabilities
+predAdj = predict(curClassifier, featureFrame, type = "prob")
+threshold = 0.07
+predCut = factor( ifelse(predAdj[, "Yes"] > threshold, "Yes", "No") )
+#predCut = relevel(predCut, "yes")   #try that, if error occurs
+confusionMatrix(predCut, featureFrame$preseizure)
+
+#Naive model which predicts "No" all the time
+predNaive= rep(1,504)
+myroc = pROC::roc(featureFrame$preseizure, predNaive,levels = c("Yes","No"),plot=TRUE)
 
 
-#ROC
+#### OTHER STUFF / HELPER / ETC. ####
+#old ROC Plot
 # fit.pr = predict(prunedtree,newdata=data$val,type="prob")[,2]
 # fit.pred = prediction(fit.pr,data$val$income)
 # fit.perf = performance(fit.pred,"tpr","fpr")
@@ -192,3 +226,7 @@ confusionMatrix(pred,testData$preseizure)
 #      main="ROC:  Classification Trees on Adult Dataset")
 # abline(a=0,b=1)
 #(6. predict & 7. create submission)
+
+#if tree: plot can be interesting
+plot(classifier$finalModel)
+text(classifier$finalModel)
