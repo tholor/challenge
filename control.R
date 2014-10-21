@@ -4,7 +4,7 @@ gc()
 library(R.matlab) #matlab import
 library(rpart) #trees
 library(ff)  #flat files
-library(pracma)
+library(pracma) # Functions from numerical analysis and linear algebra, numerical optimization, differential equations, plus some special functions. Uses Matlab function names where appropriate to simplify porting.
 #library(propagate)
 library(caret) #  classifier Framework
 library(xlsx) # Excel export/import
@@ -35,13 +35,13 @@ for(i in 1:numFilesInter){
   #check if file has already been cached (maybe later: outsource as a function): 
   if(file.exists(paste0(pathCache,target,"\\",varName,".ffData"))){ 
     ffload(paste0(pathCache,target,"\\",varName), overwrite = TRUE)
-    print(paste0("loaded from cache: ", varName, " for Target: ", target))
+    print(paste0("loaded from cache: ", varName, " for Target: ", target)) # REMOVE debug
   }
   else{ #if not load it from .mat File and save it
-  print(paste0("loaded from .mat: ", varName,, " for Target: ", target))
+  print(paste0("loaded from .mat: ", varName,, " for Target: ", target)) # REMOVE debug
   temp = readMat(paste0(path,interictalFileNames[i]))
   assign(varName, ff(initdata = temp[[1]][1][[1]], vmode = "short",  dim = dim(temp[[1]][1][[1]])))
-  t = get(varName)
+  t = get(varName) # TODO simpler way?
   ffsave(t,list = c(varName), file = paste0(pathCache, target,"\\",varName))
   }
 }
@@ -51,20 +51,20 @@ for(i in 1:numFilesPre){
   #check if file has already been cached: 
   if(file.exists(paste0(pathCache,target,"\\",varName,".ffData"))){ 
     ffload(paste0(pathCache, target,"\\",varName), overwrite = TRUE)
-    print(paste0("loaded from cache: ", varName, " for Target: ", target))
+    print(paste0("loaded from cache: ", varName, " for Target: ", target)) # REMOVE debug
   }else{ #if not load it from .mat File and save it
   temp = readMat(paste0(path,preictalFileNames[i]))
   assign(varName, ff(initdata = temp[[1]][1][[1]], vmode = "short",dim = dim(temp[[1]][1][[1]])))
-  t = get(varName)
+  t = get(varName) # TODO simpler way?
   ffsave(t,list = c(varName), file = paste0(pathCache, target,"\\",varName)) 
-  print(paste0("loaded from .mat: ", varName, " for Target: ", target))
+  print(paste0("loaded from .mat: ", varName, " for Target: ", target)) # REMOVE debug
   }
 }
 
 #Build Frequency Data (Fourier Transformation of Time Data)
 #note for later: patient data has different sample frequency!
 if(doFFT){
-  print("### Start FFT Transformation ###")
+  print("### Start FFT Transformation ###") # REMOVE debug
   #Transform interictal Data
   for(i in 1:numFilesInter){
     ffName = paste0("ffTimeInter",i)
@@ -72,13 +72,13 @@ if(doFFT){
     #check Cache
     if(file.exists(paste0(pathCache,target,"\\",ffFreqName,".ffData"))){ 
       ffload(paste0(pathCache, target,"\\",ffFreqName), overwrite = TRUE)
-      print(paste0("FFT from cache: ", ffFreqName, " for Target: ", target))
+      print(paste0("FFT from cache: ", ffFreqName, " for Target: ", target)) # REMOVE debug
     }else{ #if not: do fft and save it to cache
     temp = getFFT(get(ffName))
     assign(ffFreqName, ff(initdata = temp, vmode = "short",  dim = dim(temp)))
     t = get(ffFreqName)
     ffsave(t,list = c(ffFreqName), file = paste0(pathCache, target,"\\",ffFreqName)) 
-    print(paste0("transformed with fft: ", ffFreqName, " for Target: ", target))
+    print(paste0("transformed with fft: ", ffFreqName, " for Target: ", target)) # REMOVE debug
     }
   }
   #Transform preictal Data

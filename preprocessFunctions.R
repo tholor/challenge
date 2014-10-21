@@ -84,7 +84,7 @@ getFFT = function(ffClip){
     Y_scaled[i,] = 2*abs(Y_temp[1:(NFFT/2+1)])
   }
   colnames(Y_scaled) = f
-  return (Y_scaled)
+  return (Y_scaled[,1:47]) # TODO dynamic subset?
   
   #get frequencies with high amplitudes
   #f[which(Y_scaled>0.2)]
