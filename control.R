@@ -8,7 +8,7 @@ library(pracma)
 #library(propagate)
 library(caret) #  classifier Framework
 library(xlsx) # Excel export/import
-#library(doParallel) # later for parallelization of caret functionality: 
+library(doParallel) # later for parallelization of caret functionality: 
 
 #2. load config
 source("config.R")
@@ -75,7 +75,7 @@ if(doFFT){
       print(paste0("FFT from cache: ", ffFreqName, " for Target: ", target))
     }else{ #if not: do fft and save it to cache
     temp = getFFT(get(ffName))
-    assign(ffFreqName, ff(initdata = temp, vmode = "short",  dim = dim(temp)))
+    assign(ffFreqName, ff(initdata = temp, vmode = "integer",  dim = dim(temp)))
     t = get(ffFreqName)
     ffsave(t,list = c(ffFreqName), file = paste0(pathCache, target,"\\",ffFreqName)) 
     print(paste0("transformed with fft: ", ffFreqName, " for Target: ", target))
@@ -91,7 +91,7 @@ if(doFFT){
       print(paste0("FFT from cache: ", ffFreqName, " for Target: ", target))
     }else{ #if not: do fft and save it to cache
     temp = getFFT(get(ffName))
-    assign(paste0("ffFreqPre",i), ff(initdata = temp, vmode = "short",dim = dim(temp)))
+    assign(paste0("ffFreqPre",i), ff(initdata = temp, vmode = "integer",dim = dim(temp)))
     t = get(ffFreqName)
     ffsave(t,list = c(ffFreqName), file = paste0(pathCache, target,"\\",ffFreqName)) 
     print(paste0("transformed with fft: ", ffFreqName, " for Target: ", target))
@@ -149,7 +149,7 @@ file.remove(list.files(getOption("fftempdir"), full.names="true"))
 
 # 3c) combine the data
 featureFrame = rbind(featureFrameInter,featureFramePre)
-write.table(featureFrame, "D:\\Seizure Competition\\Data\\Cache\\Dog1\\Features\\test.txt", sep="\t")
+write.table(featureFrame, "D:\\Seizure Competition\\Data\\Cache\\Dog1\\Features\\test_neu.txt", sep="\t")
 #split into training and testing sample
 trainRows = sample(1:nrow(featureFrame),nrow(featureFrame)*0.5)
 testRows = - trainRows
@@ -157,12 +157,10 @@ trainData = featureFrame[trainRows,]
 testData = featureFrame[testRows,]
 
 #shortcut: loading the current "standard feature frame"
-featureFrame = read.table("D:\\Seizure Competition\\Data\\Cache\\Dog1\\Features\\test.txt", header=TRUE, sep="\t")
+featureFrame = read.table("D:\\Seizure Competition\\Data\\Cache\\Dog1\\Features\\test_neu.txt", header=TRUE, sep="\t")
 featureFrame$preseizure = as.factor(featureFrame$preseizure)
-featureFrame$preseizure
 ########### Classifier ##############################
 #4. train classifier
-#later: cost sensitive (more important to classify the rare preseizure clips correctly)
 print("### Start training the classifier ###")
 #list of possible classifiers
 lossMatrix = matrix(c(0,100,1,0), nrow=2)
@@ -180,7 +178,7 @@ cvCtrl = trainControl(method = "repeatedcv",number = 10, repeats = 3, classProbs
   classifierRandomForest =    train(preseizure ~ ., data = featureFrame, trControl = cvCtrl, metric = "ROC", method = "rf")
   #support vector machines
   classifierSVMlin =          train(preseizure ~ ., data = featureFrame, trControl = cvCtrl, metric = "ROC", method = "svmLinear", scaled = FALSE)#0.7711
-  classifierSVMexp =          train(preseizure ~ ., data = featureFrame, trControl = cvCtrl, metric = "ROC", method = "svmRadial", scaled = FALSE)#0.9858
+  classifierSVMexp =          train(preseizure ~ ., data = featureFrame, trControl = cvCtrl, metric = "ROC", method = "svmRadial", scaled = FALSE)#1
 
 #Combine the results of the different classifiers and print summary
 performanceResults <- resamples(list(rPart = classifierRpart,
@@ -194,20 +192,19 @@ bwplot(performanceResults, layout = c(3, 1))
 
 # 5. evaluate classifier
 curClassifier = classifierSVMexp
-pred = predict(classifier, featureFrame, type = "class") #for rpart
+#pred = predict(classifier, featureFrame, type = "class") #for rpart
 pred = predict(curClassifier, featureFrame) #should work for all caret classifiers
 confusionMatrix(pred,featureFrame$preseizure, positive = "Yes")
 #AUC Calculation (Area under the ROC Curve)
 #Sanity Check! Seems to be super high
 predRoc = predict(curClassifier, featureFrame, type = "prob")
-predRoc
 myroc = pROC::roc(featureFrame$preseizure, as.vector(predRoc[,2]))
 plot(myroc, print.thres = "best")
 auc(myroc)
 
 #adjust optimal cut-off threshold for class probabilities
 predAdj = predict(curClassifier, featureFrame, type = "prob")
-threshold = 0.07
+threshold = 0.048
 predCut = factor( ifelse(predAdj[, "Yes"] > threshold, "Yes", "No") )
 #predCut = relevel(predCut, "yes")   #try that, if error occurs
 confusionMatrix(predCut, featureFrame$preseizure)
@@ -216,6 +213,9 @@ confusionMatrix(predCut, featureFrame$preseizure)
 predNaive= rep(1,504)
 myroc = pROC::roc(featureFrame$preseizure, predNaive,levels = c("Yes","No"),plot=TRUE)
 
+########## SUbmission ########## 
+#6. Create Submission File
+createTargetSubmission(curClassifier, featureFrame, c(interictalFileNames, preictalFileNames), target)
 
 #### OTHER STUFF / HELPER / ETC. ####
 #old ROC Plot
@@ -228,5 +228,5 @@ myroc = pROC::roc(featureFrame$preseizure, predNaive,levels = c("Yes","No"),plot
 #(6. predict & 7. create submission)
 
 #if tree: plot can be interesting
-plot(classifier$finalModel)
-text(classifier$finalModel)
+plot(classifierRpart$finalModel)
+text(classifierRpart$finalModel)

@@ -65,7 +65,6 @@ freqCorrelation = function(ffClip){
 getFFT = function(ffClip){
   #in: ff File
   #out: matrix
-  ffClip =ffTimeInter1
   Fs = 400;                   # % Sampling frequency
   T = 1/Fs;                    # % Sample time
   L = 239766;                    # % Length of signal
@@ -83,13 +82,17 @@ getFFT = function(ffClip){
     #take only one half of the measures and scale them
     Y_scaled[i,] = 2*abs(Y_temp[1:(NFFT/2+1)])
   }
+  #in order to store it in a short (instead of a double) scale amplitudes up
+  Y_scaled = Y_scaled*100
   colnames(Y_scaled) = f
+  
+  #To DO: combine "same" frequencies (e.g. 1,1HZ and 1,2 Hz => 1Hz)
   return (Y_scaled)
   
   #get frequencies with high amplitudes
-  #f[which(Y_scaled>0.2)]
+  #f[which(Y_scaled>0.4)]
   #Plot single-sided amplitude spectrum.
-  #plot(colnames(Y_scaled),Y_scaled[15,],type="l") 
+  #plot(colnames(Y_scaled),Y_scaled,type="l")
 }
 
 ############
