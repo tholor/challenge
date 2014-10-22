@@ -85,9 +85,10 @@ getFFT = function(ffClip){
   #in order to store it in a short (instead of a double) scale amplitudes up
   Y_scaled = Y_scaled*100
   colnames(Y_scaled) = f
-  
+
   #To DO: combine "same" frequencies (e.g. 1,1HZ and 1,2 Hz => 1Hz)
   return (Y_scaled)
+
   
   #get frequencies with high amplitudes
   #f[which(Y_scaled>0.4)]
