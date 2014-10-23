@@ -25,8 +25,16 @@ source("classifier.R")
 #numFilesPre = length(preictalFileNames)
 numFilesInter = 480
 numFilesPre = 24
+numFilesTest = 502
 doFFT = TRUE
 target = "Dog1"
+
+
+#Get Filenames
+a = getFilenames(path)
+interictalFileNames = a[[1]]
+preictalFileNames = a[[2]]
+testFileNames = a[[3]]
 
 #Load Raw Time Data
 #load interictal clips to ff variables
@@ -122,6 +130,7 @@ for(i in 1: numFilesPre){
   freqFeatures = freqCorrelation(get(ffFreqName)) 
   assign(paste0("featurePre", i), cbind(timeFeatures,freqFeatures))
 }
+
 #combine interictal features to one data.frame, remove single clip files and add target column
 featureFrameInter = featureInter1
 for (i in 2: numFilesInter){
@@ -209,13 +218,17 @@ predCut = factor( ifelse(predAdj[, "Yes"] > threshold, "Yes", "No") )
 #predCut = relevel(predCut, "yes")   #try that, if error occurs
 confusionMatrix(predCut, featureFrame$preseizure)
 
-#Naive model which predicts "No" all the time
-predNaive= rep(1,504)
-myroc = pROC::roc(featureFrame$preseizure, predNaive,levels = c("Yes","No"),plot=TRUE)
+########## Prediction & Submission ########## 
+#6. Make Predictions for test clips
+makePredictions = TRUE
+if(makePredictions) source("preprocessTestclips.R")
+#7. Create Submission File in Data/Submission
+#per Target:
+#createTargetSubmission(curClassifier, featureFrame, c(interictalFileNames, preictalFileNames), target)
+createTargetSubmission(curClassifier, featureFrameTest, testFileNames, target)
 
-########## SUbmission ########## 
-#6. Create Submission File
-createTargetSubmission(curClassifier, featureFrame, c(interictalFileNames, preictalFileNames), target)
+#combine them all 
+createFullSubmission()
 
 #### OTHER STUFF / HELPER / ETC. ####
 #old ROC Plot
@@ -226,6 +239,12 @@ createTargetSubmission(curClassifier, featureFrame, c(interictalFileNames, preic
 #      main="ROC:  Classification Trees on Adult Dataset")
 # abline(a=0,b=1)
 #(6. predict & 7. create submission)
+
+
+#Naive model which predicts "No" all the time
+predNaive= rep(1,504)
+myroc = pROC::roc(featureFrame$preseizure, predNaive,levels = c("Yes","No"),plot=TRUE)
+
 
 #if tree: plot can be interesting
 plot(classifierRpart$finalModel)

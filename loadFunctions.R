@@ -1,5 +1,5 @@
 
-
+getFilenames= function(path){
 # get all the correct filenames from the path
 fileNames = list.files(path)
 # only filenames with the targets in it 
@@ -14,7 +14,8 @@ fileNames = fileNames[grepl(paste0("+(",targets[1],"|",targets[2],")+"),fileName
 interictalFileNames = fileNames[grepl("+interictal+",fileNames)]
 preictalFileNames = fileNames[grepl("+preictal+",fileNames)]
 testFileNames = fileNames[grepl("+test+",fileNames)]
-
+return(list(interictalFileNames,preictalFileNames,testFileNames))
+}
 
 ## Load Data
 # change "20" with dynamic statement "length(files)" later!
