@@ -7,14 +7,16 @@ library(ff)  #flat files
 library(pracma) # Functions from numerical analysis and linear algebra, numerical optimization, differential equations, plus some special functions. Uses Matlab function names where appropriate to simplify porting.
 #library(propagate)
 library(caret) #  classifier Framework
-library(xlsx) # Excel export/import
+#library(xlsx) # Excel export/import
 library(doParallel) # later for parallelization of caret functionality: 
+library(beepr) #beep sound to notify end of a run
 
 #2. load config
 source("config.R")
 source("loadFunctions.R")
 source("preprocessFunctions.R")
 source("classifier.R")
+source("submission.R")
 
 
 #3. preprocess data
@@ -27,6 +29,7 @@ numFilesInter = 480
 numFilesPre = 24
 numFilesTest = 502
 doFFT = TRUE
+makePredictions = TRUE
 target = "Dog1"
 
 
@@ -46,7 +49,7 @@ for(i in 1:numFilesInter){
     print(paste0("loaded from cache: ", varName, " for Target: ", target)) # REMOVE debug
   }
   else{ #if not load it from .mat File and save it
-  print(paste0("loaded from .mat: ", varName,, " for Target: ", target)) # REMOVE debug
+  print(paste0("loaded from .mat: ", varName, " for Target: ", target)) # REMOVE debug
   temp = readMat(paste0(path,interictalFileNames[i]))
   assign(varName, ff(initdata = temp[[1]][1][[1]], vmode = "short",  dim = dim(temp[[1]][1][[1]])))
   t = get(varName) # TODO simpler way?
@@ -67,6 +70,16 @@ for(i in 1:numFilesPre){
   ffsave(t,list = c(varName), file = paste0(pathCache, target,"\\",varName)) 
   print(paste0("loaded from .mat: ", varName, " for Target: ", target)) # REMOVE debug
   }
+}
+#Extract Sequencenumber for each clip (relevant for splitting test/train sets later)
+if(file.exists(paste0(pathCache,target,"\\sequences.txt"))){
+  seqOfClips = read.table(paste0(pathCache,target,"\\sequences.txt"), sep="\t")
+}else{
+allFileNames = c(interictalFileNames, preictalFileNames)
+seqOfClips = getSequences(allFileNames)
+row.names(seqOfClips) = allFileNames
+#save them (loading is extreme expensive!)
+write.table(seqOfClips, paste0(pathCache,target,"\\sequences.txt"), sep="\t")
 }
 
 #Build Frequency Data (Fourier Transformation of Time Data)
@@ -138,6 +151,7 @@ for (i in 2: numFilesInter){
   featureFrameInter = rbind(featureFrameInter, varName)
 }
 featureFrameInter$preseizure = as.factor(rep("No",nrow(featureFrameInter)))
+row.names(featureFrameInter) = interictalFileNames
 #combine preictal features to one data.frame and add target column
 featureFramePre = featurePre1
 for (i in 2: numFilesPre){
@@ -145,7 +159,7 @@ for (i in 2: numFilesPre){
   featureFramePre = rbind(featureFramePre, varName)
 }
 featureFramePre$preseizure = as.factor(rep("Yes",nrow(featureFramePre)))
-
+row.names(featureFramePre) = preictalFileNames
 #remove unused ff files (from disk) and variables (from RAM)
 rm(temp)
 rm(list = ls()[grepl("+ffFreq+",ls())])
@@ -157,17 +171,22 @@ file.remove(list.files(getOption("fftempdir"), full.names="true"))
 
 
 # 3c) combine the data
+#temporary: saving the featureFrame
 featureFrame = rbind(featureFrameInter,featureFramePre)
-write.table(featureFrame, "D:\\Seizure Competition\\Data\\Cache\\Dog1\\Features\\test_neu.txt", sep="\t")
-#split into training and testing sample
-trainRows = sample(1:nrow(featureFrame),nrow(featureFrame)*0.5)
-testRows = - trainRows
-trainData = featureFrame[trainRows,]
-testData = featureFrame[testRows,]
-
-#shortcut: loading the current "standard feature frame"
-featureFrame = read.table("D:\\Seizure Competition\\Data\\Cache\\Dog1\\Features\\test_neu.txt", header=TRUE, sep="\t")
+write.table(featureFrame, paste0(pathCache,target,"\\Features\\test_neu.txt"), sep="\t")
+beep()
+#(shortcut: loading the current "standard feature frame")
+featureFrame = read.table(paste0(pathCache,target,"\\Features\\test_neu.txt"), header=TRUE, sep="\t")
 featureFrame$preseizure = as.factor(featureFrame$preseizure)
+featureFrameInter = featureFrame[featureFrame$preseizure == "No",] 
+featureFramePre = featureFrame[featureFrame$preseizure == "Yes",]
+
+#split into training and testing sample, keeping the sequences in intact (6 in a row)
+splittedFrame = splitToTestTrain(featureFrameInter,featureFramePre, seqOfClips, 0.75)
+trainData = splittedFrame[[1]]
+testData = splittedFrame[[2]]
+
+
 ########### Classifier ##############################
 #4. train classifier
 print("### Start training the classifier ###")
@@ -182,12 +201,12 @@ cvCtrl = trainControl(method = "repeatedcv",number = 10, repeats = 3, classProbs
 #cvCtrlClass = trainControl(method = "repeatedcv",number = 5, repeats = 3)
 
   #treebased classifier
-  classifierRpart =           train(preseizure ~ ., data = featureFrame, trControl = cvCtrl, metric = "ROC", method = "rpart",   parms = list(loss = lossMatrix))#AUC:0.9882
-  classifierc5 =              train(preseizure ~ ., data = featureFrame, trControl = cvCtrl, metric = "ROC", method = "C5.0", costs = lossMatrix)#AUC: 0.9636
-  classifierRandomForest =    train(preseizure ~ ., data = featureFrame, trControl = cvCtrl, metric = "ROC", method = "rf")
+  classifierRpart =           train(preseizure ~ ., data = trainData, trControl = cvCtrl, metric = "ROC", method = "rpart",   parms = list(loss = lossMatrix))#AUC: 0.46
+  classifierc5 =              train(preseizure ~ ., data = trainData, trControl = cvCtrl, metric = "ROC", method = "C5.0", costs = lossMatrix)
+  classifierRandomForest =    train(preseizure ~ ., data = trainData, trControl = cvCtrl, metric = "ROC", method = "rf")#0.6
   #support vector machines
-  classifierSVMlin =          train(preseizure ~ ., data = featureFrame, trControl = cvCtrl, metric = "ROC", method = "svmLinear", scaled = FALSE)#0.7711
-  classifierSVMexp =          train(preseizure ~ ., data = featureFrame, trControl = cvCtrl, metric = "ROC", method = "svmRadial", scaled = FALSE)#1
+  classifierSVMlin =          train(preseizure ~ ., data = trainData, trControl = cvCtrl, metric = "ROC", method = "svmLinear", scaled = FALSE)
+  classifierSVMexp =          train(preseizure ~ ., data = trainData, trControl = cvCtrl, metric = "ROC", method = "svmRadial", scaled = FALSE)#0.51
 
 #Combine the results of the different classifiers and print summary
 performanceResults <- resamples(list(rPart = classifierRpart,
@@ -199,28 +218,28 @@ summary(performanceResults)
 #visualize performance of different train methods with box-and-whisker-plot :
 bwplot(performanceResults, layout = c(3, 1))
 
-# 5. evaluate classifier
-curClassifier = classifierSVMexp
+# 5. evaluate a single classifier
+curClassifier = classifierRandomForest
 #pred = predict(classifier, featureFrame, type = "class") #for rpart
-pred = predict(curClassifier, featureFrame) #should work for all caret classifiers
-confusionMatrix(pred,featureFrame$preseizure, positive = "Yes")
+pred = predict(curClassifier, testData) #should work for all caret classifiers
+confusionMatrix(pred,testData$preseizure, positive = "Yes")
 #AUC Calculation (Area under the ROC Curve)
 #Sanity Check! Seems to be super high
-predRoc = predict(curClassifier, featureFrame, type = "prob")
-myroc = pROC::roc(featureFrame$preseizure, as.vector(predRoc[,2]))
+predRoc = predict(curClassifier, testData, type = "prob")
+myroc = pROC::roc(testData$preseizure, as.vector(predRoc[,2]))
 plot(myroc, print.thres = "best")
 auc(myroc)
 
+
 #adjust optimal cut-off threshold for class probabilities
-predAdj = predict(curClassifier, featureFrame, type = "prob")
-threshold = 0.048
+predAdj = predict(curClassifier, testData, type = "prob")
+threshold = coords(myroc,x="best",best.method = "closest.topleft")[[1]] #get optimal cutoff threshold
 predCut = factor( ifelse(predAdj[, "Yes"] > threshold, "Yes", "No") )
 #predCut = relevel(predCut, "yes")   #try that, if error occurs
-confusionMatrix(predCut, featureFrame$preseizure)
+confusionMatrix(predCut, testData$preseizure)
 
 ########## Prediction & Submission ########## 
 #6. Make Predictions for test clips
-makePredictions = TRUE
 if(makePredictions) source("preprocessTestclips.R")
 #7. Create Submission File in Data/Submission
 #per Target:
@@ -242,10 +261,10 @@ createFullSubmission()
 
 
 #Naive model which predicts "No" all the time
-predNaive= rep(1,504)
-myroc = pROC::roc(featureFrame$preseizure, predNaive,levels = c("Yes","No"),plot=TRUE)
+# predNaive= rep(1,504)
+# myroc = pROC::roc(featureFrame$preseizure, predNaive,levels = c("Yes","No"),plot=TRUE)
 
 
 #if tree: plot can be interesting
-plot(classifierRpart$finalModel)
-text(classifierRpart$finalModel)
+# plot(classifierRpart$finalModel)
+# text(classifierRpart$finalModel)

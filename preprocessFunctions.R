@@ -88,12 +88,43 @@ getFFT = function(ffClip){
 
   #To DO: combine "same" frequencies (e.g. 1,1HZ and 1,2 Hz => 1Hz)
   return (Y_scaled)
-
   
   #get frequencies with high amplitudes
   #f[which(Y_scaled>0.4)]
   #Plot single-sided amplitude spectrum.
   #plot(colnames(Y_scaled),Y_scaled,type="l")
+}
+splitToTestTrain = function(interictalData, preictalData, seqOfClips, ratio){  
+  #preictalData = featureFramePre[1:18,]
+  #featureFrameInter[1:120,]  
+  #split interictal in test and train set
+  trainSeq = trainIndices(interictalData,seqOfClips,ratio)
+  trainInterictal = interictalData[trainSeq,]
+  testInterictal = interictalData[-trainSeq,]
+  #split preictal in test and train set 
+  trainSeq = trainIndices(preictalData, seqOfClips, ratio)
+  trainPreictal = preictalData[trainSeq,]
+  testPreictal = preictalData[-trainSeq,]
+  #combine both to complete test and train set
+  testSet = rbind(testInterictal,testPreictal)
+  trainSet = rbind(trainInterictal, trainPreictal)
+  return(list(trainSet,testSet))
+}
+
+trainIndices = function(data, seqOfClips, ratio){
+  #returns the indizes for test and train data without destroying the sequences of 6 clips in a row
+  #ratio =  how much percent should be selected for training?
+  #seqOfClips = Table with filename and sequence number
+  mergedData = merge(data, seqOfClips, by = "row.names", all.x = TRUE)
+  #number of Sequences:
+  numSeq = max(mergedData$seq)
+  allSeq = c(1:numSeq)
+  #select Random sequence numbers
+  howMany = as.integer(ratio*numSeq)
+  sampledSeq = sample (allSeq, howMany)
+  #Transform the selected sequences to the required vector of indices
+  indicesTrain = which(mergedData$seq %in% sampledSeq)
+  return(indicesTrain)
 }
 
 ############
@@ -125,3 +156,4 @@ addColumns = function(frame, numNew){
   frame[,(ncol(frame)+1):(ncol(frame)+numNew)] = matrix(NA,nrow(frame),numNew)
   return(frame)
 }
+
