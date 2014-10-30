@@ -1,19 +1,27 @@
 
-getFilenames= function(path){
-# get all the correct filenames from the path
-fileNames = list.files(path)
-# only filenames with the targets in it 
-targetString = ""
-for (i in 1:(length(targets)-1)){
-  print(i)
-  targetString = paste0(targetString,targets[i],"|")
-}
-paste0(targetString,targets[i+1])
+getFilenames= function(path,target){
+#check if single file with all the filenames has already been created
+  if(file.exists(paste0(path,"Cache\\",target,"\\Meta\\filenames.txt"))){
+    fileNames = scan(file = paste0(path,"Cache\\",target,"\\Meta\\filenames.txt"), what ="character")
+  }else{
+  # get all the correct filenames from the path
+  fileNames = list.files(paste0(path,target,"\\"))
+  write(fileNames,paste0(path,"Cache\\",target,"\\Meta\\filenames.txt"))
+  # only filenames with the targets in it 
+#  targetString = ""
+#   for (i in 1:(length(targets)-1)){
+#     print(i)
+#     targetString = paste0(targetString,targets[i],"|")
+#   }
+#   paste0(targetString,targets[i+1])
+#   write(fileNames)
+  }
 # split the filenames according to seizure period
-fileNames = fileNames[grepl(paste0("+(",targets[1],"|",targets[2],")+"),fileNames)]
+#fileNames = fileNames[grepl(paste0("+(",targets[1],"|",targets[2],")+"),fileNames)]
 interictalFileNames = fileNames[grepl("+interictal+",fileNames)]
 preictalFileNames = fileNames[grepl("+preictal+",fileNames)]
 testFileNames = fileNames[grepl("+test+",fileNames)]
+
 return(list(interictalFileNames,preictalFileNames,testFileNames))
 }
 

@@ -62,12 +62,12 @@ freqCorrelation = function(ffClip){
 # bipolar filter, low pass filter, fast fourier trans. , normalization, time series correlation, frequ. correlation ...
 
 
-getFFT = function(ffClip){
+getFFT = function(ffClip,freq,from,to,method){
   #in: ff File
   #out: matrix
-  Fs = 400;                   # % Sampling frequency
+  Fs = freq;                   # % Sampling frequency
   T = 1/Fs;                    # % Sample time
-  L = 239766;                    # % Length of signal
+  L = round(Fs*60*10);         # % Length of signal
   t = c(0:(L-1))*T  
   #apply fourier transformation to detect the original sinus signals
   #NFFT etc for scaling and extracting only the positive values from fft
@@ -86,14 +86,43 @@ getFFT = function(ffClip){
   Y_scaled = Y_scaled*100
   colnames(Y_scaled) = f
 
+  #compress the matrix by combining "same" frequencies (e.g. 1,51HZ and 2,49 Hz => 2Hz)
+  Y_scaled = uniteFreq(Y_scaled,from,to,step = (Fs/2)/(NFFT/2), method)
   #To DO: combine "same" frequencies (e.g. 1,1HZ and 1,2 Hz => 1Hz)
   return (Y_scaled)
   
   #get frequencies with high amplitudes
   #f[which(Y_scaled>0.4)]
   #Plot single-sided amplitude spectrum.
-  #plot(colnames(Y_scaled),Y_scaled,type="l")
+  plot(colnames(Y_scaled),Y_scaled[1,],type="l")
 }
+uniteFreq = function(data, from, to, step, method){
+  #unites frequencies around integer values
+  #returns matrix with #channels rows and #frequencies columns
+  unitedData = matrix(NA, ncol=to-from+1 ,nrow=dim(data)[1])
+  if (method =="sum"){
+    for(i in from:to){
+      lowerBound = i-0.5
+      upperBound = i+0.499
+      indexBegin = lowerBound/step +2 
+      indexEnd = upperBound/step +2
+      #sum up all values in the window
+      unitedData[,i] = rowSums(data[,indexBegin:indexEnd])
+    }
+  }
+  if(method == "mean"){
+    for(i in from:to){
+      lowerBound = i-0.5
+      upperBound = i+0.499
+      indexBegin = lowerBound/step +2 
+      indexEnd = upperBound/step +2
+      #mean of all values in the window
+      unitedData[,i] = rowMeans(data[,indexBegin:indexEnd])
+    }
+  }
+  return(unitedData)
+}
+
 splitToTestTrain = function(interictalData, preictalData, seqOfClips, ratio){  
   #preictalData = featureFramePre[1:18,]
   #featureFrameInter[1:120,]  

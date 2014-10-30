@@ -25,27 +25,31 @@ source("submission.R")
 #load interictal clips to ff variables
 #numFilesInter = length(interictalFileNames) #how many of the available clips should be loaded
 #numFilesPre = length(preictalFileNames)
-numFilesInter = 480
-numFilesPre = 24
-numFilesTest = 502
+numFilesInter = 480 #480
+numFilesPre = 24 #24
+numFilesTest = 502 #502
 doFFT = TRUE
+freq = 399.6098
+freqFrom = 1
+freqTo = 47
+fftMethod = "sum"
 makePredictions = TRUE
 target = "Dog1"
 
 
 #Get Filenames
-a = getFilenames(path)
-interictalFileNames = a[[1]]
-preictalFileNames = a[[2]]
-testFileNames = a[[3]]
+a = getFilenames(path,target)
+interictalFileNames = a[[1]][1:numFilesInter]
+preictalFileNames = a[[2]][1:numFilesPre]
+testFileNames = a[[3]][1:numFilesTest]
 
 #Load Raw Time Data
 #load interictal clips to ff variables
 for(i in 1:numFilesInter){
   varName = paste0("ffTimeInter",i)
   #check if file has already been cached (maybe later: outsource as a function): 
-  if(file.exists(paste0(pathCache,target,"\\",varName,".ffData"))){ 
-    ffload(paste0(pathCache,target,"\\",varName), overwrite = TRUE)
+  if(file.exists(paste0(path,"Cache\\",target,"\\",varName,".ffData"))){ 
+    ffload(paste0(path,"Cache\\",target,"\\",varName), overwrite = TRUE)
     print(paste0("loaded from cache: ", varName, " for Target: ", target)) # REMOVE debug
   }
   else{ #if not load it from .mat File and save it
@@ -53,33 +57,33 @@ for(i in 1:numFilesInter){
   temp = readMat(paste0(path,interictalFileNames[i]))
   assign(varName, ff(initdata = temp[[1]][1][[1]], vmode = "short",  dim = dim(temp[[1]][1][[1]])))
   t = get(varName) # TODO simpler way?
-  ffsave(t,list = c(varName), file = paste0(pathCache, target,"\\",varName))
+  ffsave(t,list = c(varName), file = paste0(path,"Cache\\", target,"\\",varName))
   }
 }
 #load preIctal Clips to ff variables
 for(i in 1:numFilesPre){
   varName = paste0("ffTimePre",i)
   #check if file has already been cached: 
-  if(file.exists(paste0(pathCache,target,"\\",varName,".ffData"))){ 
-    ffload(paste0(pathCache, target,"\\",varName), overwrite = TRUE)
+  if(file.exists(paste0(path,"Cache\\",target,"\\",varName,".ffData"))){ 
+    ffload(paste0(path,"Cache\\", target,"\\",varName), overwrite = TRUE)
     print(paste0("loaded from cache: ", varName, " for Target: ", target)) # REMOVE debug
   }else{ #if not load it from .mat File and save it
   temp = readMat(paste0(path,preictalFileNames[i]))
   assign(varName, ff(initdata = temp[[1]][1][[1]], vmode = "short",dim = dim(temp[[1]][1][[1]])))
   t = get(varName) # TODO simpler way?
-  ffsave(t,list = c(varName), file = paste0(pathCache, target,"\\",varName)) 
+  ffsave(t,list = c(varName), file = paste0(path,"Cache\\", target,"\\",varName)) 
   print(paste0("loaded from .mat: ", varName, " for Target: ", target)) # REMOVE debug
   }
 }
 #Extract Sequencenumber for each clip (relevant for splitting test/train sets later)
-if(file.exists(paste0(pathCache,target,"\\sequences.txt"))){
-  seqOfClips = read.table(paste0(pathCache,target,"\\sequences.txt"), sep="\t")
+if(file.exists(paste0(path,"Cache\\",target,"\\Meta\\sequences.txt"))){
+  seqOfClips = read.table(paste0(path,"Cache\\",target,"\\Meta\\sequences.txt"), sep="\t")
 }else{
 allFileNames = c(interictalFileNames, preictalFileNames)
 seqOfClips = getSequences(allFileNames)
 row.names(seqOfClips) = allFileNames
 #save them (loading is extreme expensive!)
-write.table(seqOfClips, paste0(pathCache,target,"\\sequences.txt"), sep="\t")
+write.table(seqOfClips, paste0(path,"Cache\\",target,"\\Meta\\sequences.txt"), sep="\t")
 }
 
 #Build Frequency Data (Fourier Transformation of Time Data)
@@ -91,14 +95,14 @@ if(doFFT){
     ffName = paste0("ffTimeInter",i)
     ffFreqName = paste0("ffFreqInter",i)
     #check Cache
-    if(file.exists(paste0(pathCache,target,"\\",ffFreqName,".ffData"))){ 
-      ffload(paste0(pathCache, target,"\\",ffFreqName), overwrite = TRUE)
+    if(file.exists(paste0(path,"Cache\\",target,"\\",ffFreqName,".ffData"))){ 
+      ffload(paste0(path,"Cache\\", target,"\\",ffFreqName), overwrite = TRUE)
       print(paste0("FFT from cache: ", ffFreqName, " for Target: ", target)) # REMOVE debug
     }else{ #if not: do fft and save it to cache
-    temp = getFFT(get(ffName))
+    temp = getFFT(get(ffName),freq,freqFrom,freqTo,fftMethod)
     assign(ffFreqName, ff(initdata = temp, vmode = "integer",  dim = dim(temp)))
     t = get(ffFreqName)
-    ffsave(t,list = c(ffFreqName), file = paste0(pathCache, target,"\\",ffFreqName)) 
+    ffsave(t,list = c(ffFreqName), file = paste0(path,"Cache\\", target,"\\",ffFreqName)) 
     print(paste0("transformed with fft: ", ffFreqName, " for Target: ", target)) # REMOVE debug
     }
   }
@@ -107,14 +111,14 @@ if(doFFT){
     ffName = paste0("ffTimePre",i)
     ffFreqName = paste0("ffFreqPre",i)
     #check Cache
-    if(file.exists(paste0(pathCache,target,"\\",ffFreqName,".ffData"))){ 
-      ffload(paste0(pathCache, target,"\\",ffFreqName), overwrite = TRUE)
+    if(file.exists(paste0(path,"Cache\\",target,"\\",ffFreqName,".ffData"))){ 
+      ffload(paste0(path,"Cache\\", target,"\\",ffFreqName), overwrite = TRUE)
       print(paste0("FFT from cache: ", ffFreqName, " for Target: ", target))
     }else{ #if not: do fft and save it to cache
-    temp = getFFT(get(ffName))
+    temp = getFFT(get(ffName),freq,freqFrom,freqTo,fftMethod)
     assign(paste0("ffFreqPre",i), ff(initdata = temp, vmode = "integer",dim = dim(temp)))
     t = get(ffFreqName)
-    ffsave(t,list = c(ffFreqName), file = paste0(pathCache, target,"\\",ffFreqName)) 
+    ffsave(t,list = c(ffFreqName), file = paste0(path,"Cache\\", target,"\\",ffFreqName)) 
     print(paste0("transformed with fft: ", ffFreqName, " for Target: ", target))
     }
   }
@@ -124,6 +128,7 @@ if(doFFT){
 # 3b)extract features and build dataframe for the classifier
 print("### Start Feature Extraction ###")
 wishedFeatures = c('variance','correlation')
+
 #get the features for each interictal clip
 for(i in 1: numFilesInter){
   ffName = paste0("ffTimeInter",i)
@@ -173,10 +178,12 @@ file.remove(list.files(getOption("fftempdir"), full.names="true"))
 # 3c) combine the data
 #temporary: saving the featureFrame
 featureFrame = rbind(featureFrameInter,featureFramePre)
-write.table(featureFrame, paste0(pathCache,target,"\\Features\\test_neu.txt"), sep="\t")
+write.table(featureFrame, paste0(path,"Cache\\",target,"\\Features\\test_neu.txt"), sep="\t")
 beep()
+
+
 #(shortcut: loading the current "standard feature frame")
-featureFrame = read.table(paste0(pathCache,target,"\\Features\\test_neu.txt"), header=TRUE, sep="\t")
+featureFrame = read.table(paste0(path,"Cache\\",target,"\\Features\\test_neu.txt"), header=TRUE, sep="\t")
 featureFrame$preseizure = as.factor(featureFrame$preseizure)
 featureFrameInter = featureFrame[featureFrame$preseizure == "No",] 
 featureFramePre = featureFrame[featureFrame$preseizure == "Yes",]
@@ -191,9 +198,9 @@ testData = splittedFrame[[2]]
 #4. train classifier
 print("### Start training the classifier ###")
 #list of possible classifiers
-lossMatrix = matrix(c(0,100,1,0), nrow=2)
-classifier = rpartTree(trainData, lossMatrix) #simple (unpruned) CART Tree with package rpart
-rm(classifier)
+# lossMatrix = matrix(c(0,100,1,0), nrow=2)
+# classifier = rpartTree(trainData, lossMatrix) #simple (unpruned) CART Tree with package rpart
+# rm(classifier)
 
 #tuned classifiiers from caret package:
 #set tune parameters: 3x 10folds cross validation; later: make sure that train and test data contain *different sequences* of data
@@ -228,7 +235,7 @@ confusionMatrix(pred,testData$preseizure, positive = "Yes")
 predRoc = predict(curClassifier, testData, type = "prob")
 myroc = pROC::roc(testData$preseizure, as.vector(predRoc[,2]))
 plot(myroc, print.thres = "best")
-auc(myroc)
+auc(myroc) #that's our "final" evaluation score 
 
 
 #adjust optimal cut-off threshold for class probabilities
