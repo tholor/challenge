@@ -33,7 +33,7 @@ getSequences = function(fileNames){
   lastElement = 0
   seqCounter = 1
   for(i in 1:length(fileNames)){
-    temp = readMat(paste0(path,seqFrame[i,1]))
+    temp = readMat(paste0(path,target,"\\",seqFrame[i,1]))
     newElement = as.integer(temp[[1]][[5]][1,1])
     #check if new sequence started
     if(newElement < lastElement) seqCounter=seqCounter+1

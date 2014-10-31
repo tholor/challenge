@@ -25,16 +25,16 @@ source("submission.R")
 #load interictal clips to ff variables
 #numFilesInter = length(interictalFileNames) #how many of the available clips should be loaded
 #numFilesPre = length(preictalFileNames)
-numFilesInter = 480 #480
-numFilesPre = 24 #24
-numFilesTest = 502 #502
+numFilesInter = 450#500 #480
+numFilesPre = 30#42 #24
+numFilesTest = 990#1000 #502
 doFFT = TRUE
 freq = 399.6098
 freqFrom = 1
 freqTo = 47
 fftMethod = "sum"
 makePredictions = TRUE
-target = "Dog1"
+target = "Dog4"
 
 
 #Get Filenames
@@ -54,7 +54,7 @@ for(i in 1:numFilesInter){
   }
   else{ #if not load it from .mat File and save it
   print(paste0("loaded from .mat: ", varName, " for Target: ", target)) # REMOVE debug
-  temp = readMat(paste0(path,interictalFileNames[i]))
+  temp = readMat(paste0(path,target,"\\",interictalFileNames[i]))
   assign(varName, ff(initdata = temp[[1]][1][[1]], vmode = "short",  dim = dim(temp[[1]][1][[1]])))
   t = get(varName) # TODO simpler way?
   ffsave(t,list = c(varName), file = paste0(path,"Cache\\", target,"\\",varName))
@@ -68,7 +68,7 @@ for(i in 1:numFilesPre){
     ffload(paste0(path,"Cache\\", target,"\\",varName), overwrite = TRUE)
     print(paste0("loaded from cache: ", varName, " for Target: ", target)) # REMOVE debug
   }else{ #if not load it from .mat File and save it
-  temp = readMat(paste0(path,preictalFileNames[i]))
+  temp = readMat(paste0(path,target,"\\",preictalFileNames[i]))
   assign(varName, ff(initdata = temp[[1]][1][[1]], vmode = "short",dim = dim(temp[[1]][1][[1]])))
   t = get(varName) # TODO simpler way?
   ffsave(t,list = c(varName), file = paste0(path,"Cache\\", target,"\\",varName)) 
@@ -123,7 +123,6 @@ if(doFFT){
     }
   }
 }
-
 ########## Features ##########
 # 3b)extract features and build dataframe for the classifier
 print("### Start Feature Extraction ###")
@@ -179,14 +178,13 @@ file.remove(list.files(getOption("fftempdir"), full.names="true"))
 #temporary: saving the featureFrame
 featureFrame = rbind(featureFrameInter,featureFramePre)
 write.table(featureFrame, paste0(path,"Cache\\",target,"\\Features\\test_neu.txt"), sep="\t")
-beep()
 
 
 #(shortcut: loading the current "standard feature frame")
-featureFrame = read.table(paste0(path,"Cache\\",target,"\\Features\\test_neu.txt"), header=TRUE, sep="\t")
-featureFrame$preseizure = as.factor(featureFrame$preseizure)
-featureFrameInter = featureFrame[featureFrame$preseizure == "No",] 
-featureFramePre = featureFrame[featureFrame$preseizure == "Yes",]
+# featureFrame = read.table(paste0(path,"Cache\\",target,"\\Features\\test_neu.txt"), header=TRUE, sep="\t")
+# featureFrame$preseizure = as.factor(featureFrame$preseizure)
+# featureFrameInter = featureFrame[featureFrame$preseizure == "No",] 
+# featureFramePre = featureFrame[featureFrame$preseizure == "Yes",]
 
 #split into training and testing sample, keeping the sequences in intact (6 in a row)
 splittedFrame = splitToTestTrain(featureFrameInter,featureFramePre, seqOfClips, 0.75)
@@ -235,8 +233,8 @@ confusionMatrix(pred,testData$preseizure, positive = "Yes")
 predRoc = predict(curClassifier, testData, type = "prob")
 myroc = pROC::roc(testData$preseizure, as.vector(predRoc[,2]))
 plot(myroc, print.thres = "best")
-auc(myroc) #that's our "final" evaluation score 
-
+currentScore = auc(myroc) #that's our "final" evaluation score 
+currentScore
 
 #adjust optimal cut-off threshold for class probabilities
 predAdj = predict(curClassifier, testData, type = "prob")
@@ -245,6 +243,12 @@ predCut = factor( ifelse(predAdj[, "Yes"] > threshold, "Yes", "No") )
 #predCut = relevel(predCut, "yes")   #try that, if error occurs
 confusionMatrix(predCut, testData$preseizure)
 
+#save the results for this classifier&Feature&target combination to a summary file
+newRow = data.frame(time = as.character(Sys.time()), AUC = currentScore, OptThreshold = threshold,target = target, classifier = curClassifier$modelInfo$label, preprocessing = "fft w/ 1,47,sum",features = "timeVar,TimeCor,FreqCor")
+oldSummary = read.table(paste0(path,"\\summary.csv"), sep=";", header = TRUE)
+combinedSummary = rbind(oldSummary, newRow)
+write.table(combinedSummary, paste0(path,"\\summary.csv"), sep=";",row.names = FALSE)
+
 ########## Prediction & Submission ########## 
 #6. Make Predictions for test clips
 if(makePredictions) source("preprocessTestclips.R")
@@ -252,7 +256,7 @@ if(makePredictions) source("preprocessTestclips.R")
 #per Target:
 #createTargetSubmission(curClassifier, featureFrame, c(interictalFileNames, preictalFileNames), target)
 createTargetSubmission(curClassifier, featureFrameTest, testFileNames, target)
-
+beep()
 #combine them all 
 createFullSubmission()
 

@@ -6,7 +6,7 @@ getFeatures = function (ffClip, wishedFeatures, startColumns = 16,type){
  ##Assembling the wished Features ##
  ## 1. Variance ##
  if('variance' %in% wishedFeatures){
-   numNewFeatures = 16 #number of features, which will be added
+   numNewFeatures = dim(ffClip)[1] #number of features, which will be added
    newColNeeded = (colCounter+numNewFeatures)-ncol(feature)
    #add new (empty) columns
    if (newColNeeded>0) feature = addColumns(feature,newColNeeded)
@@ -21,7 +21,7 @@ getFeatures = function (ffClip, wishedFeatures, startColumns = 16,type){
  
  # 2. Correlation for the time dimension ##
  if('correlation' %in% wishedFeatures){
-   numNewFeatures = choose(16,2) #number of features, which will be added
+   numNewFeatures = choose(dim(ffClip)[1],2) #number of features, which will be added
    newColNeeded = (colCounter+numNewFeatures)-ncol(feature)
    #add new (empty) columns
    if (newColNeeded>0) feature = addColumns(feature,newColNeeded)
