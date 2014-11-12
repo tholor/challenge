@@ -11,7 +11,7 @@ for(i in 1:numFilesTest){
   }else{ #if not load it from .mat File and save it
     temp = readMat(paste0(path,target,"\\",testFileNames[i]))
     assign(varName, ff(initdata = temp[[1]][1][[1]], vmode = "short",dim = dim(temp[[1]][1][[1]])))
-    t = get(varName) # TODO simpler way?
+    t = get(varName) 
     ffsave(t,list = c(varName), file = paste0(path,"Cache\\", target,"\\",varName)) 
     print(paste0("loaded from .mat: ", varName, " for Target: ", target)) # REMOVE debug
   }
@@ -37,8 +37,8 @@ for(i in 1: numFilesTest){
   ffName = paste0("ffTimeTest",i)
   ffFreqName = paste0("ffFreqTest",i)
   #only temporary version until Tom'S restructuring (deleting the "wishedFeatures" structure)
-  timeFeatures=getFeatures(get(ffName),wishedFeatures,16)
-  freqFeatures = freqCorrelation(get(ffFreqName)) 
+  timeFeatures= timeCorrelationEigen(get(ffName))
+  freqFeatures = cbind(freqCorrelationEigen(get(ffFreqName)), freqLogMagnitudes(get(ffFreqName))) 
   assign(paste0("featureTest", i), cbind(timeFeatures,freqFeatures))
 }
 #combine them to testFrame

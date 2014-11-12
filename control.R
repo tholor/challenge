@@ -25,16 +25,16 @@ source("submission.R")
 #load interictal clips to ff variables
 #numFilesInter = length(interictalFileNames) #how many of the available clips should be loaded
 #numFilesPre = length(preictalFileNames)
-numFilesInter = 450#500 #480
-numFilesPre = 30#42 #24
-numFilesTest = 990#1000 #502
+numFilesInter = 480# 480#500 #480
+numFilesPre = 24#42 #24
+numFilesTest = 502#1000 #502
 doFFT = TRUE
-freq = 399.6098
+freq =  399.6098 #5000 
 freqFrom = 1
 freqTo = 47
 fftMethod = "sum"
 makePredictions = TRUE
-target = "Dog4"
+target = "Dog1"
 
 
 #Get Filenames
@@ -56,7 +56,7 @@ for(i in 1:numFilesInter){
   print(paste0("loaded from .mat: ", varName, " for Target: ", target)) # REMOVE debug
   temp = readMat(paste0(path,target,"\\",interictalFileNames[i]))
   assign(varName, ff(initdata = temp[[1]][1][[1]], vmode = "short",  dim = dim(temp[[1]][1][[1]])))
-  t = get(varName) # TODO simpler way?
+  t = get(varName)
   ffsave(t,list = c(varName), file = paste0(path,"Cache\\", target,"\\",varName))
   }
 }
@@ -133,8 +133,8 @@ for(i in 1: numFilesInter){
   ffName = paste0("ffTimeInter",i)
   ffFreqName = paste0("ffFreqInter",i)
   #only temporary version until Tom'S restructuring (deleting the "wishedFeatures" structure)
-  timeFeatures=getFeatures(get(ffName),wishedFeatures,16)
-  freqFeatures = freqCorrelation(get(ffFreqName)) 
+  timeFeatures= timeCorrelationEigen(get(ffName))
+  freqFeatures = cbind(freqCorrelationEigen(get(ffFreqName)), freqLogMagnitudes(get(ffFreqName))) 
   assign(paste0("featureInter", i), cbind(timeFeatures,freqFeatures))
 }
 
@@ -143,13 +143,13 @@ for(i in 1: numFilesPre){
   ffName = paste0("ffTimePre",i)
   ffFreqName = paste0("ffFreqPre",i)
   #only temporary version until Tom'S restructuring (deleting the "wishedFeatures" structure)
-  timeFeatures=getFeatures(get(ffName),wishedFeatures,16)
-  freqFeatures = freqCorrelation(get(ffFreqName)) 
+  timeFeatures= timeCorrelationEigen(get(ffName))
+  freqFeatures = cbind(freqCorrelationEigen(get(ffFreqName)), freqLogMagnitudes(get(ffFreqName))) 
   assign(paste0("featurePre", i), cbind(timeFeatures,freqFeatures))
 }
 
 #combine interictal features to one data.frame, remove single clip files and add target column
-featureFrameInter = featureInter1
+featureFrameInter = as.data.frame(featureInter1)
 for (i in 2: numFilesInter){
   varName = get(paste0("featureInter",i))
   featureFrameInter = rbind(featureFrameInter, varName)
@@ -157,7 +157,7 @@ for (i in 2: numFilesInter){
 featureFrameInter$preseizure = as.factor(rep("No",nrow(featureFrameInter)))
 row.names(featureFrameInter) = interictalFileNames
 #combine preictal features to one data.frame and add target column
-featureFramePre = featurePre1
+featureFramePre = as.data.frame(featurePre1)
 for (i in 2: numFilesPre){
   varName = get(paste0("featurePre",i))
   featureFramePre = rbind(featureFramePre, varName)
@@ -177,20 +177,20 @@ file.remove(list.files(getOption("fftempdir"), full.names="true"))
 # 3c) combine the data
 #temporary: saving the featureFrame
 featureFrame = rbind(featureFrameInter,featureFramePre)
-write.table(featureFrame, paste0(path,"Cache\\",target,"\\Features\\test_neu.txt"), sep="\t")
+write.table(featureFrame, paste0(path,"Cache\\",target,"\\Features\\logMagn-timeCorrEigen-FreqCorrEigen.txt"), sep="\t")
 
 
 #(shortcut: loading the current "standard feature frame")
-# featureFrame = read.table(paste0(path,"Cache\\",target,"\\Features\\test_neu.txt"), header=TRUE, sep="\t")
-# featureFrame$preseizure = as.factor(featureFrame$preseizure)
-# featureFrameInter = featureFrame[featureFrame$preseizure == "No",] 
-# featureFramePre = featureFrame[featureFrame$preseizure == "Yes",]
+#featureFrame = read.table(paste0(path,"Cache\\",target,"\\Features\\test_neu.txt"), header=TRUE, sep="\t")
+#featureFrame$preseizure = as.factor(featureFrame$preseizure)
+#featureFrameInter = featureFrame[featureFrame$preseizure == "No",] 
+#featureFramePre = featureFrame[featureFrame$preseizure == "Yes",]
 
 #split into training and testing sample, keeping the sequences in intact (6 in a row)
 splittedFrame = splitToTestTrain(featureFrameInter,featureFramePre, seqOfClips, 0.75)
 trainData = splittedFrame[[1]]
 testData = splittedFrame[[2]]
-
+beep()
 
 ########### Classifier ##############################
 #4. train classifier
@@ -206,26 +206,26 @@ cvCtrl = trainControl(method = "repeatedcv",number = 10, repeats = 3, classProbs
 #cvCtrlClass = trainControl(method = "repeatedcv",number = 5, repeats = 3)
 
   #treebased classifier
-  classifierRpart =           train(preseizure ~ ., data = trainData, trControl = cvCtrl, metric = "ROC", method = "rpart",   parms = list(loss = lossMatrix))#AUC: 0.46
-  classifierc5 =              train(preseizure ~ ., data = trainData, trControl = cvCtrl, metric = "ROC", method = "C5.0", costs = lossMatrix)
+  #classifierRpart =           train(preseizure ~ ., data = trainData, trControl = cvCtrl, metric = "ROC", method = "rpart",   parms = list(loss = lossMatrix))#AUC: 0.46
+  #classifierc5 =              train(preseizure ~ ., data = trainData, trControl = cvCtrl, metric = "ROC", method = "C5.0", costs = lossMatrix)
   classifierRandomForest =    train(preseizure ~ ., data = trainData, trControl = cvCtrl, metric = "ROC", method = "rf")#0.6
   #support vector machines
-  classifierSVMlin =          train(preseizure ~ ., data = trainData, trControl = cvCtrl, metric = "ROC", method = "svmLinear", scaled = FALSE)
-  classifierSVMexp =          train(preseizure ~ ., data = trainData, trControl = cvCtrl, metric = "ROC", method = "svmRadial", scaled = FALSE)#0.51
+  #classifierSVMlin =          train(preseizure ~ ., data = trainData, trControl = cvCtrl, metric = "ROC", method = "svmLinear", scaled = FALSE)
+  #classifierSVMexp =          train(preseizure ~ ., data = trainData, trControl = cvCtrl, metric = "ROC", method = "svmRadial", scaled = FALSE)#0.51
 
 #Combine the results of the different classifiers and print summary
-performanceResults <- resamples(list(rPart = classifierRpart,
+#performanceResults <- resamples(list(rPart = classifierRpart,
                                     svmLin = classifierSVMlin,
                                     svmexp = classifierSVMexp,
                                     C5 = classifierc5))
-summary(performanceResults)
+#summary(performanceResults)
 
 #visualize performance of different train methods with box-and-whisker-plot :
-bwplot(performanceResults, layout = c(3, 1))
+#bwplot(performanceResults, layout = c(3, 1))
 
 # 5. evaluate a single classifier
 curClassifier = classifierRandomForest
-#pred = predict(classifier, featureFrame, type = "class") #for rpart
+pred = predict(classifier, featureFrame, type = "class") #for rpart
 pred = predict(curClassifier, testData) #should work for all caret classifiers
 confusionMatrix(pred,testData$preseizure, positive = "Yes")
 #AUC Calculation (Area under the ROC Curve)
@@ -250,12 +250,16 @@ combinedSummary = rbind(oldSummary, newRow)
 write.table(combinedSummary, paste0(path,"\\summary.csv"), sep=";",row.names = FALSE)
 
 ########## Prediction & Submission ########## 
+#train again with full trainingset 
+cvCtrl = trainControl(method = "repeatedcv",number = 10, repeats = 3, classProbs = TRUE, summaryFunction = twoClassSummary)
+finalClassifier =    train(preseizure ~ ., data = featureFrame, trControl = cvCtrl, metric = "ROC", method = "rf")#0.6
+
 #6. Make Predictions for test clips
 if(makePredictions) source("preprocessTestclips.R")
 #7. Create Submission File in Data/Submission
 #per Target:
 #createTargetSubmission(curClassifier, featureFrame, c(interictalFileNames, preictalFileNames), target)
-createTargetSubmission(curClassifier, featureFrameTest, testFileNames, target)
+createTargetSubmission(finalClassifier, featureFrameTest, testFileNames, target)
 beep()
 #combine them all 
 createFullSubmission()
