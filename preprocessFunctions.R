@@ -8,9 +8,12 @@ timeCorrelationEigen = function(ffClip){
   normalized = scale(ffClip[,])
   #get correlation 
   correlation = cor(t(normalized))
+  #remove NAs
+  correlation[is.na(correlation)] = 0
   lowerTriangle = correlation[lower.tri(correlation[,])]
+ 
   #get Eigenvalues
-  eigenvalues = eig(correlation)
+  eigenvalues = pracma::eig(correlation)
   #combine
   features= matrix(c(lowerTriangle, eigenvalues), nrow=1)
   
@@ -28,10 +31,49 @@ timeCorrelationEigen = function(ffClip){
   return(features)
 }
 
+timeCorrelationAlt = function(ffClip){
+  numOfChan = dim(ffClip)[1]
+  numOfCor = choose(numOfChan,2)
+  #to check: type of normalization
+  #normalize each clip
+  #get correlation 
+  correlation = cor(t(ffClip[,]))
+  lowerTriangle = correlation[lower.tri(correlation[,])]
+ 
+  #combine
+  features= matrix(lowerTriangle, nrow=1)
+  
+  #name the columns (cor1-2 cor1-3 ... )
+  columnNamesCor = rep("NA",numOfCor)
+  combinations = combn(1:dim(ffClip[])[1],2)
+  for (j in 1:numOfCor){
+    columnNamesCor[j] = paste0('CorAlt',combinations[1,j],".",combinations[2,j])
+  }
+
+  colnames(features)=columnNamesCor
+  return(features)
+}
+
+timeVariance = function(ffClip){
+  numOfChan = dim(ffClip)[1]
+  #combine
+  features= matrix(rowVars(ffClip[,]), nrow=1)
+  
+  #name the columns (cor1-2 cor1-3 ... )
+  columnNamesCor = rep("NA",numOfChan)
+  combinations = combn(1:dim(ffClip[])[1],2)
+  for (j in 1:numOfChan){
+    columnNamesCor[j] = paste0('VarCh',j)
+  }
+  
+  colnames(features)=columnNamesCor
+  return(features)
+}
+
 # 3. Correlation for the frequency dimension
 #input: ffClip which has already been transformed by fft and reduced to essential dimensions (otherwise giant correlation matrix)
 #To Do: sanity check
-freqCorrelation = function(ffClip){
+freqCorrelationAlt = function(ffClip){
   #in: ff File
   #out: matrix
   numOfChannels = dim(ffClip[,])[1]
@@ -41,7 +83,7 @@ freqCorrelation = function(ffClip){
   #Naming
   combinations = combn(1:numOfChannels,2)
   for (j in 1:numOfCorrelations){
-    columnNames[j] = paste0('freqCor',combinations[1,j],".",combinations[2,j])
+    columnNames[j] = paste0('freqCorAlt',combinations[1,j],".",combinations[2,j])
   }
   colnames(features) = columnNames
   return(features)
@@ -63,9 +105,10 @@ freqCorrelationEigen = function(ffClip){
   #features = matrix(getCorrelationOfClip(t(ffClip[,])), nrow=1)
   #correlation
   correlation = cor(t(normalized))
+  correlation[is.na(correlation)] = 0
   lowerTriangle = correlation[lower.tri(correlation[,])]
   #eigenvalues
-  eigenvalues = eig(correlation)
+  eigenvalues = pracma::eig(correlation)
   #combine
   features = matrix(c(lowerTriangle,eigenvalues),nrow = 1)
   #Naming
@@ -83,7 +126,6 @@ freqCorrelationEigen = function(ffClip){
 
 #return the simple log(magnitudes) in each frequency bucket => 1 Row with 47*num_of_channels features 
 freqLogMagnitudes = function (ffClip){
-  ffClip = ffFreqInter1
   numberOfChan = dim(ffClip)[1]
   numberOfFreq = dim(ffClip)[2]
   values = matrix(log10(ffClip[,]), nrow = 1)
@@ -227,10 +269,10 @@ addColumns = function(frame, numNew){
   frame[,(ncol(frame)+1):(ncol(frame)+numNew)] = matrix(NA,nrow(frame),numNew)
   return(frame)
 }
-#######
-#######
-#Storing old Version of "getFeatures"
-##new Version:
+# #######
+# #######
+# #Storing old Version of "getFeatures"
+# ##new Version:
 # getFeatures = function (ffClip, wishedFeatures, startColumns = 16,type){
 #   feature = data.frame(matrix(NA,1,startColumns))
 #   colCounter = 0
