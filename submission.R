@@ -17,7 +17,12 @@ createTargetSubmission = function(classifier, data ,filenames,target,submissionN
 }
 
 createFullSubmission = function (version){
+  #version = "-bayesglm-timeCorrNeu,freqCorrNeu,logMagn"
+  #version="-LMT-timeCorrNeu,freqCorrNeu,logMagn"
+  #version = "-LogitBoost-timeCorrNeu,freqCorrNeu,logMagn"
+  #version = "-rf-timeCorrNeu,freqCorrNeu,logMagn"
   #combine the different files in the submission folder
+  version = "-LMTGrid-timeCorrNeu,freqCorrNeu,logMagn,timeEig,freqEig"
   predDog1 = read.table(paste0(path,"Submission\\Dog1",version,".csv"), header =TRUE, sep =",")
   predDog1$clip = as.character(predDog1$clip)
   predDog1$preictal = as.numeric(predDog1$preictal) 
@@ -46,7 +51,11 @@ createFullSubmission = function (version){
   #get all those rows of the dummy targets
    dummies =  sampleSubmission[grepl("+Patient_1+",sampleSubmission[,1]),]  
   #combine it with real predictions
-  combined = rbind(predDog1,predDog2,predDog3,predDog4,predDog5,dummies,predPat2)
-  write.table(combined ,paste0(path,"Submission\\fullSubmission",substr(Sys.time(),1,10),"-", substr(Sys.time(),12,13),"h.csv"), sep=",", quote = FALSE, row.names = FALSE)
+  combined = rbind(predDog1,predDog2,predDog3,predDog4,predDog5,predPat1,predPat2)
+  combinedDummy = rbind(predDog1,predDog2,predDog3,predDog4,predDog5,dummies,predPat2)
+  
+  write.table(combined ,paste0(path,"Submission\\fullSubmission",version,substr(Sys.time(),1,10),"-", substr(Sys.time(),12,13),"h.csv"), sep=",", quote = FALSE, row.names = FALSE)
+  write.table(combinedDummy ,paste0(path,"Submission\\fullSubmissionDumP1",version,substr(Sys.time(),1,10),"-", substr(Sys.time(),12,13),"h.csv"), sep=",", quote = FALSE, row.names = FALSE)
+  
 }
 

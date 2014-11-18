@@ -1,4 +1,4 @@
-targets = c("Dog1","Dog2","Dog3","Dog4","Dog5")
+targets = c("Patient2","Patient1")
 for(curTarget in 1:length(targets)){
   
 rm(list = ls()[!ls() %in% c("targets","curTarget")])
@@ -11,10 +11,10 @@ library(pracma) # Functions from numerical analysis and linear algebra, numerica
 #library(propagate)
 library(caret) #  classifier Framework
 #library(xlsx) # Excel export/import
-library(doParallel) # later for parallelization of caret functionality: 
+#library(doParallel) # later for parallelization of caret functionality: 
 library(beepr) #beep sound to notify end of a run
 library(matrixStats)
-
+library(doSNOW)
 #2. load config
 source("config.R")
 source("loadFunctions.R")
@@ -197,24 +197,25 @@ print(paste0("#### End of Loop for: ", target))
 }
 ####classifier loop
 #arrClassifier = c("classifierRandomForest","classifierBayes","classifierBoostLogit","classifierLogTree")
-arrClassifier = c("classifierBayes")
+arrClassifier = c("classifierLogTree")
 #target = "Dog3"
 
-targets = c("Dog1","Dog2","Dog3","Dog4","Dog5")
+targets = c("Dog1","Dog2","Dog3","Dog4","Dog5","Patient1","Patient2")
 
 for(curTarget in 1:length(targets)){
-    target = targets[curTarget]
+  target = "Dog1"  
+  target = targets[curTarget]
   #(shortcut: loading the current "standard feature frame")
-  featureFrame = read.table(paste0(path,"Cache\\",target,"\\Features\\allFeatures"), header=TRUE, sep="\t")
-  variance = featureFrame[,1:16]
-  timeCorrAlt =  featureFrame[,17:136]
-  timeCorrNeu =  featureFrame[,137:256]
-  timeEigen = featureFrame[,257:272]
-  freqCorrAlt =  featureFrame[,273:392]
-  freqCorrNeu = featureFrame[,393:512]
-  freqEigen = featureFrame[,513:528]
-  logMagn = featureFrame[,529:1280]
-  preseizure = featureFrame[,1281]
+  featureFrame = read.table(paste0(path,"Cache\\",target,"\\Features\\allFeatures.txt"), header=TRUE, sep="\t")
+  variance = featureFrame[,grepl("Var",colnames(featureFrame))]
+  timeCorrAlt =  featureFrame[,grepl("^CorAlt[1-9]",colnames(featureFrame))] ##noch alle drin
+  timeCorrNeu =  featureFrame[,grepl("^Cor[1-9]",colnames(featureFrame))]
+  timeEigen = featureFrame[,grepl("TimeEigen",colnames(featureFrame))]
+  freqCorrAlt =  featureFrame[,grepl("freqCorAlt",colnames(featureFrame))]
+  freqCorrNeu = featureFrame[,grepl("freqCor[1-9]",colnames(featureFrame))]
+  freqEigen = featureFrame[,grepl("FreqEigen",colnames(featureFrame))]
+  logMagn = featureFrame[,grepl("logFreq",colnames(featureFrame))]
+  preseizure = featureFrame[,"preseizure"]
   
   featureString = "variance,timeCorrAlt,freqCorrAlt"
   featureFrame = cbind(variance,timeCorrAlt,freqCorrNeu,preseizure)
@@ -227,7 +228,7 @@ for(curTarget in 1:length(targets)){
   #get sequences
   seqOfClips = read.table(paste0(path,"Cache\\",target,"\\Meta\\sequences.txt"), sep="\t")
   #split into training and testing sample, keeping the sequences in intact (6 in a row)
-  splittedFrame = splitToTestTrain(featureFrameInter,featureFramePre, seqOfClips, 0.75)
+  splittedFrame = splitToTestTrain(featureFrameInter,featureFramePre, seqOfClips, 0.6)
   trainData = splittedFrame[[1]]
   testData = splittedFrame[[2]]
   
@@ -288,6 +289,10 @@ for(curTarget in 1:length(targets)){
       plot(myroc, print.thres = "best")
       currentScore = auc(myroc) #that's our "final" evaluation score 
       currentScore
+      #save predicted prob for postprocessing
+      fileNamesTestSplit = row.names(testData)
+      subName = paste0(target,"LMT-TrainPred4PostProcessing")
+      createTargetSubmission(curClassifier,testData,fileNamesTestSplit,target, subName)
       
       #adjust optimal cut-off threshold for class probabilities
       #predAdj = predict(curClassifier, testData, type = "prob")
@@ -301,69 +306,74 @@ for(curTarget in 1:length(targets)){
       oldSummary = read.table(paste0(path,"\\summary.csv"), sep=";", header = TRUE)
       combinedSummary = rbind(oldSummary, newRow)
       write.table(combinedSummary, paste0(path,"\\summary.csv"), sep=";",row.names = FALSE)
-      beep()
+      #beep()
 }
 }
 
 
 ########## Prediction & Submission ########## 
 #train again with full trainingset 
-arrClassifier = c("rf","bayesglm","LMT","LogitBoost")
-target = "Dog3"
-targets = c("Dog2","Dog3","Dog4","Dog5")
+numOfChan = matrix(c(16,16,16,16,15,15,24),ncol = 1)
+row.names(numOfChan) = c("Dog1","Dog2","Dog3","Dog4","Dog5","Patient1","Patient2")
+arrClassifier = c("LMT")
+targets = c("Dog1","Dog2","Dog3","Dog4","Dog5","Patient1","Patient2")
 for (curClassifier in 1:length(arrClassifier)){
   classifier = arrClassifier[curClassifier]
 for(curTarget in 1:length(targets)){
   target = targets[curTarget]
+  numOfCurrChan = numOfChan[target,]
   a = getFilenames(path,target)
   interictalFileNames = a[[1]]
   preictalFileNames = a[[2]]
   testFileNames = a[[3]]
   featureFrame = read.table(paste0(path,"Cache\\",target,"\\Features\\allFeatures.txt"), header=TRUE, sep="\t")
-  variance = featureFrame[,1:16]
-  timeCorrAlt =  featureFrame[,17:136]
-  timeCorrNeu =  featureFrame[,137:256]
-  timeEigen = featureFrame[,257:272]
-  freqCorrAlt =  featureFrame[,273:392]
-  freqCorrNeu = featureFrame[,393:512]
-  freqEigen = featureFrame[,513:528]
-  logMagn = featureFrame[,529:1280]
-  preseizure = featureFrame[,1281]
+  variance = featureFrame[,grepl("Var",colnames(featureFrame))]
+  timeCorrAlt =  featureFrame[,grepl("^CorAlt[1-9]",colnames(featureFrame))] ##noch alle drin
+  timeCorrNeu =  featureFrame[,grepl("^Cor[1-9]",colnames(featureFrame))]
+  timeEigen = featureFrame[,grepl("TimeEigen",colnames(featureFrame))]
+  freqCorrAlt =  featureFrame[,grepl("freqCorAlt",colnames(featureFrame))]
+  freqCorrNeu = featureFrame[,grepl("freqCor[1-9]",colnames(featureFrame))]
+  freqEigen = featureFrame[,grepl("FreqEigen",colnames(featureFrame))]
+  logMagn = featureFrame[,grepl("logFreq",colnames(featureFrame))]
+  preseizure = featureFrame[,"preseizure"]
   
   #combining the wanted features
-  featureString = "timeCorrNeu,freqCorrNeu,logMagn"
-  featureFrame = cbind(timeCorrNeu,freqCorrNeu,logMagn,preseizure) 
+  featureString = "timeCorrNeu,freqCorrNeu,logMagn,timeEig,freqEig"
+  featureFrame = cbind(timeCorrNeu,timeEigen,freqCorrNeu,freqEigen,logMagn,preseizure) 
   featureFrame$preseizure = as.factor(featureFrame$preseizure)
 
   #splitting the features (for testclips)
   featureFrameTest = read.table(paste0(path,"Cache\\",target,"\\Features\\allTestFeatures.txt"), header=TRUE, sep="\t")
-  variance = featureFrameTest[,1:16]
-  timeCorrAlt =  featureFrameTest[,17:136]
-  timeCorrNeu =  featureFrameTest[,137:256]
-  timeEigen = featureFrameTest[,257:272]
-  freqCorrAlt =  featureFrameTest[,273:392]
-  freqCorrNeu = featureFrameTest[,393:512]
-  freqEigen = featureFrameTest[,513:528]
-  logMagn = featureFrameTest[,529:1280]
+  variance = featureFrameTest[,grepl("Var",colnames(featureFrameTest))]
+  timeCorrAlt =  featureFrameTest[,grepl("^CorAlt[1-9]",colnames(featureFrameTest))]
+  timeCorrNeu =  featureFrameTest[,grepl("^Cor[1-9]",colnames(featureFrameTest))]
+  timeEigen = featureFrameTest[,grepl("TimeEigen",colnames(featureFrameTest))]
+  freqCorrAlt =  featureFrameTest[,grepl("freqCorAlt",colnames(featureFrameTest))]
+  freqCorrNeu = featureFrameTest[,grepl("freqCor[1-9]",colnames(featureFrameTest))]
+  freqEigen = featureFrameTest[,grepl("FreqEigen",colnames(featureFrameTest))]
+  logMagn = featureFrameTest[,grepl("logFreq",colnames(featureFrameTest))]
   
   #combining the wanted features
-  featureFrameTest = cbind(timeCorrNeu,freqCorrNeu,logMagn) 
+  featureFrameTest = cbind(timeCorrNeu,timeEigen,freqCorrNeu,freqEigen,logMagn) 
 
 cvCtrl = trainControl(method = "repeatedcv",number = 10, repeats = 3, classProbs = TRUE, summaryFunction = twoClassSummary)
-print(paste0("classifier: ",classifier," target: ",target))
-finalClassifier =    train(preseizure ~ ., data = featureFrame, trControl = cvCtrl, metric = "ROC", method = classifier)#0.6
+print(paste0("classifier: ",classifier," target: ",target," ",Sys.time()))
+LMTGrid = data.frame(iter = c(13,16,19,21,24,26,27))
+finalClassifier =    train(preseizure ~ ., data = featureFrame, trControl = cvCtrl, metric = "ROC", tuneGrid = LMTGrid, method = classifier)#0.6
 
 #6. Make Predictions for test clips
 #if(makePredictions) source("preprocessTestclips.R")
 #7. Create Submission File in Data/Submission
 #per Target:
-versionname = paste0("-",classifier,"-",featureString)
-submissionName = paste0(target,version)
+versionname = paste0("-",classifier,"Grid-",featureString)
+submissionName = paste0(target,versionname)
 createTargetSubmission(finalClassifier, featureFrameTest, testFileNames, target, submissionName)
-beep()
+#beep()
 #combine them all 
-createFullSubmission(versionName)
-}}
+
+}
+createFullSubmission(versionname)
+}
 #### OTHER STUFF / HELPER / ETC. ####
 
 
