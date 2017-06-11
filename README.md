@@ -1,2 +1,2 @@
-challenge
+kaggle challenge - seizure prediction
 =========
